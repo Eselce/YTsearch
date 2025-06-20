@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<HTML>
+    <HEAD>
+        <META charset="utf-8">
+        <TITLE>YTsearch - Greasemonkey/Tampermonkey YouTube user scripts for LOVEBITES</TITLE>
+        <LINK rel="stylesheet" type="text/css" href="css/os_styles.css" />
+        <LINK rel="stylesheet" type="text/css" href="css/print.css" media="print" />
+        <LINK rel="shortcut icon" type="image/ico" href="img/favicon.ico" />
+        <STYLE>
+            .script {
+                border:2px solid grey;
+                border-collapse:collapse;
+            }
+            .script TD {
+                border:2px solid grey;
+                border-collapse:collapse;
+            }
+        </STYLE>
+    </HEAD>
+    <BODY>
+        <DIV>
+            <SCRIPT type="text/javascript">
+                var popen = new Array();
+                function openclose(id) {
+                    var inopen = false;
+                    var newopen = new Array();
+                    for (var i = 0; i < popen.length; ++i) {
+                        if (popen[i] === id) {
+                            inopen = true;
+                        } else {
+                            newopen.push(popen[i]);
+                        }
+                    }
+                    popen = newopen;
+                    if (inopen === true) {
+                        document.getElementById('script_' + id).style.display = 'none';
+                        document.getElementById('openclose_' + id).src = 'img/geschlossen.gif';
+                    } else {
+                        document.getElementById('script_' + id).style.display = "";
+                        document.getElementById('openclose_' + id).src = 'img/offen.gif';
+                        popen.push(id);
+                    }
+                }
+                function opencloseFun(id){
+                    return (() => openclose(id));
+                }
+                function getMeta(meta) {
+                    var data = {
+                                'include'  : [],
+                                'exclude'  : [],
+                                'match'    : [],
+                                'require'  : [],
+                                'resource' : [],
+                                'grant'    : []
+                            };
+                    var match = (meta || "").match(/^\/\/ ==UserScript==\n+([^]*)\n+\/\/ ==\/UserScript==$/m);
+                    data.meta = (match || [])[1];
+                    var lines = (data.meta || "").split('\n');
+                    for (var i = 0; i < lines.length; ++i) {
+                        match = lines[i].match(/^\/\/ @(\w+)\s+(.*)\s*$/);
+                        if (match) {
+                            var item = match[1];
+                            var value = match[2];
+                            if ((typeof data[item]) == 'object') {
+                                data[item].push(value);
+                            } else {
+                                data[item] = value;
+                            }
+                        }
+                    }
+                    return data;
+                }
+                function addRow(table, colText) {
+                    var tr = document.createElement('TR');
+                    var td;
+                    for (var i = 0; i < colText.length; ++i) {
+                        td = document.createElement('TD');
+                        td.innerHTML = colText[i];
+                        tr.appendChild(td);
+                    }
+                    table.appendChild(tr);
+                    return tr;
+                }
+                function purify(text) {
+                    return (text || "").replace(/\s+\/\s+/g, "<BR />");
+                }
+                function addEntry(table, id, meta) {
+                    var colText1 = [];
+                    var data = getMeta(meta);
+                    if (! data.name) { return; }
+                    var name = purify(data.name);
+                    var version = purify(data.version);
+                    var desc = purify(data.description);
+                    var author = purify(data.author);
+                    var filename = (id ? 'YT.' + id + '.user.js' : undefined);
+                    var openclose = '"openclose(' + "'" + id + "'" + ')"';
+                    var install = '<FORM method="get" action="./' + filename + '" target="_blank" rel="noopener noreferrer">' +
+                                //  '<INPUT type="hidden" name="scriptid" value="' + id + '" />' +
+                                    '<INPUT type="submit" value="Install" /></FORM></TD>';
+                    colText1.push('<IMG src="img/geschlossen.gif" style="cursor: help;" onclick=' + openclose + ' id="openclose_' + id + '" />\n' +
+                                    '<A href="https://github.com/Eselce/YTsearch/blob/main/' + filename + '">' + name + '</A>');
+                    colText1.push(version);
+                    colText1.push(desc);
+                    colText1.push(author);
+                    colText1.push(install);
+                    var tr = addRow(table, colText1);
+                    [ '20%', '10%', null, '15%', '1%' ].forEach((minWidth, col) => {
+                            var cell = tr.children[col];
+
+                            cell.style.minWidth = minWidth;
+                            if (col > 0) {
+                                cell.addEventListener('click', opencloseFun(id));
+                            }
+                        });
+                    var colText2 = [];
+                    colText2.push('<PRE>' + data.meta + '</PRE>' + install);
+                    tr = addRow(table, colText2);
+                    tr.setAttribute('id', 'script_' + id);
+                    tr.style.display = 'none';
+                    tr.firstChild.setAttribute('colspan', 5);
+                }
+                function fillScriptTable(id, scriptMetaInfos, filter = Object.keys(scriptMeta), sortFun = undefined) {
+                    var table = document.getElementById(id);
+                    if (table && ! table.children.length) {
+                        var scriptIds = ((typeof filter == 'function') ? Object.keys(scriptMeta).filter(filter) : filter).sort(sortFun);
+                        addRow(table, [
+                                        "Script name",
+                                        "Current version",
+                                        "Description",
+                                        "Author(s)",
+                                        "Action"
+                                    ]).style.fontWeight = 'bold';
+                        for (var i = 0; i < scriptIds.length; ++i) {
+                            script = scriptIds[i];
+                            addEntry(table, script, scriptMetaInfos[script]);
+                        }
+                    }
+                }
+
+/****** Benutzerscript-Uebersicht 'index.html' ["ALL"] ******/
+
+// Inhaltsverzeichnis:
+// https://eselce.github.io/YTsearch/<ALL>:
+//  YT.show.user.js
+//  YT.new.user.js
+//  YT.info.user.js
+
+                var scriptMeta = {
+
+                    'show' : String.raw`
+// ==UserScript==
+// @name         YT.show
+// @namespace    http://youtube.com/
+// @version      0.10+lib
+// @copyright    2025+
+// @author       Sven Loges (SLC)
+// @description  Light version of YT.new - Script for Greasemonkey 4.0
+// @include      /^https?://www\.youtube\.com/.*$/
+// @include      /^https?://youtu\.be/.*$/
+// @grant        GM.info
+// @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
+// @grant        GM_info
+// @run-at       document-idle
+// @require      https://eselce.github.io/GitTest/misc/OS2/lib/lib.all.js
+// @require      https://eselce.github.io/YTsearch/lib/LOVEBITES.db.js
+// @require      https://eselce.github.io/YTsearch/lib/REJECT.db.js
+// @require      https://eselce.github.io/YTsearch/lib/NEW.db.js
+// ==/UserScript==
+                    `,
+
+                    'new' : String.raw`
+// ==UserScript==
+// @name         YT.new
+// @namespace    http://youtube.com/
+// @version      0.10+lib
+// @copyright    2025+
+// @author       Sven Loges (SLC)
+// @description  YouTube-Markierungs-Script for Greasemonkey 4.0
+// @include      /^https?://www\.youtube\.com/.*$/
+// @include      /^https?://youtu\.be/.*$/
+// @grant        GM.getValue
+// @grant        GM.setValue
+// @grant        GM.deleteValue
+// @grant        GM.registerMenuCommand
+// @grant        GM.info
+// @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
+// @grant        GM_registerMenuCommand
+// @grant        GM_info
+// @run-at       document-idle
+// @require      https://eselce.github.io/GitTest/misc/OS2/lib/lib.all.js
+// @require      https://eselce.github.io/YTsearch/lib/LOVEBITES.db.js
+// @require      https://eselce.github.io/YTsearch/lib/REJECT.db.js
+// @require      https://eselce.github.io/YTsearch/lib/NEW.db.js
+// ==/UserScript==
+                    `,
+
+                    'info' : String.raw`
+// ==UserScript==
+// @name         YT.info
+// @namespace    http://youtube.com/
+// @version      0.10+lib
+// @copyright    2025+
+// @author       Sven Loges (SLC)
+// @description  YouTube-Info-Script for Greasemonkey 4.0 (pretty much useless!)
+// @include      /^https?://www\.youtube\.com/watch\?v=(\S+)(&\w+=?[+\w]+)*(#\w+)?$/
+// @include      /^https?://youtu\.be/(\S+)\?v=(\S+)(\?\w+=?[+\w]+)*(#\w+)?(&\w+=?[+\w]+)*(#\w+)?$/
+// @grant        GM.getValue
+// @grant        GM.setValue
+// @grant        GM.deleteValue
+// @grant        GM.registerMenuCommand
+// @grant        GM.info
+// @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
+// @grant        GM_getValue
+// @grant        GM_setValue
+// @grant        GM_deleteValue
+// @grant        GM_registerMenuCommand
+// @grant        GM_info
+// @require      https://eselce.github.io/GitTest/misc/OS2/lib/lib.all.js
+// ==/UserScript==
+                    `,
+
+                    };
+
+                var scripts = [
+                        'show',
+                    //  'new',
+                    //  'info'
+                    ];
+
+                document.addEventListener("DOMContentLoaded", createScriptTables);
+                function createScriptTables(event) {
+                    fillScriptTable('scripts', scriptMeta, scripts);
+                    fillScriptTable('scriptsBeta', scriptMeta, name => ! scripts.includes(name));
+                }
+            </SCRIPT>
+
+            <H3>Standard YTsearch user scripts showing LOVEBITES YouTube videos with Greasemonkey/Tampermonkey AddOn</H3>
+            <TABLE id="scripts" class="script"></TABLE>
+
+            <H3>Experimental user scripts (use at your own risk)</H3>
+            <TABLE id="scriptsBeta" class="script"></TABLE>
+        </DIV>
+    </BODY>
+</HTML>
