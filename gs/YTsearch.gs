@@ -15,7 +15,8 @@
 
 // Parameter for YTdetails...
   const __STATSPART = "id, snippet, statistics";
-  const __CHANNELPART = 'id, snippet, statistics, brandingSettings, contentOwnerDetails';
+  // 'id, snippet, statistics, brandingSettings, localizations'
+  const __CHANNELPART = 'id, snippet, statistics';
 
 function runYTsearch() {
   const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
@@ -27,34 +28,46 @@ function runYTsearch() {
 
 function runYTdetails() {
   const __ACTIVESHEET = getActiveSheet();
-  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
+  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __COL, __MAX, 1).getValues();
   const __IDS = __IDCOL.join(',');
+  const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
+  const __CHANNELIDS = __CHANNELIDCOL.join(',');
   const [ __INFO, __STATS ] = getInfoStats(__IDS);
-  const __CHANNELSTATS = getChannelStats(__CHANNELPART, __IDS. __MAX);
+  const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
 
-  return setYTdetailsData(__ROW, __COL, __CHANNELCOL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
+  return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
 function setYTsearchData(row, col, info, stats) {
   const __ACTIVESHEET = getActiveSheet();
+  const __INFOLEN = ((info && info.length) ? info.length : 0);
+  const __STATLEN = ((stats && stats.length) ? stats.length : 0);
+  const __INFOWIDTH = ((info && info[0] && info[0].length) ? info[0].length : 0);
+  const __STATWIDTH = ((stats && stats[0] && stats[0].length) ? stats[0].length : 0);
   const __INFOCOL = col;
-  const __STATCOL = __INFOCOL + info[0].length + 1;
+  const __STATCOL = __INFOCOL + __INFOWIDTH;
 
-  __ACTIVESHEET.getRange(row, __INFOCOL, info.length, info[0].length).setValues(info);
-  __ACTIVESHEET.getRange(row, __STATCOL, stats.length, stats[0].length).setValues(stats);
+  __ACTIVESHEET.getRange(row, __INFOCOL, __INFOLEN, __INFOWIDTH).setValues(info);
+  __ACTIVESHEET.getRange(row, __STATCOL, __STATLEN, __STATWIDTH).setValues(stats);
 
   return true;
 }
 
 function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {
   const __ACTIVESHEET = getActiveSheet();
+  const __INFOLEN = ((info && info.length) ? info.length : 0);
+  const __STATLEN = ((stats && stats.length) ? stats.length : 0);
+  const __CHANLEN = ((channelStats && channelStats.length) ? channelStats.length : 0);
+  const __INFOWIDTH = ((info && info[0] && info[0].length) ? info[0].length : 0);
+  const __STATWIDTH = ((stats && stats[0] && stats[0].length) ? stats[0].length : 0);
+  const __CHANWIDTH = ((channelStats && channelStats[0] && channelStats[0].length) ? channelStats[0].length : 0);
   const __INFOCOL = col;
   const __STATCOL = statsCol;
-  const __CHANCOL = __STATCOL + stats[0].length + 1;
+  const __CHANCOL = __STATCOL + __STATWIDTH;
 
-  __ACTIVESHEET.getRange(row, __INFOCOL, info.length, info[0].length).setValues(info);
-  __ACTIVESHEET.getRange(row, __STATCOL, stats.length, stats[0].length).setValues(stats);
-  __ACTIVESHEET.getRange(row, __CHANCOL, channelStats.length, channelStats[0].length).setValues(stats);
+  if (__INFOLEN) { __ACTIVESHEET.getRange(row, __INFOCOL, __INFOLEN, __INFOWIDTH).setValues(info) };
+  if (__STATLEN) { __ACTIVESHEET.getRange(row, __STATCOL, __STATLEN, __STATWIDTH).setValues(stats) };
+  if (__CHANLEN) { __ACTIVESHEET.getRange(row, __CHANCOL, __CHANLEN, __CHANWIDTH).setValues(channelStats) };
 
   return true;
 }
@@ -68,31 +81,36 @@ function getSearchInfo(query, max, order, type) {
   return __RET;
 }
 
-function getStats(ids) {
+function getStats(IDs) {
   const __SELECT = __STATPART;
-  const __LIST = YouTube.Videos.list(__SELECT, { id: ids });
+  const __LIST = YouTube.Videos.list(__SELECT, { id: IDs });
   const __STATS = __LIST.items.map(item => mapResult(item, __SELECT));
 
   return __STATS;
 }
 
-function getInfoStats(ids) {
+function getInfoStats(IDs) {
   const __SELECT = __STATSPART;
-  const __LIST = YouTube.Videos.list(__SELECT, { id: ids });
+  const __LIST = YouTube.Videos.list(__SELECT, { id: IDs });
   const __INFO = __LIST.items.map(item => mapResult(item, __PART));
   const __STATS = __LIST.items.map(item => mapResult(item, __STATPART));
 
   return [ __INFO, __STATS ];
 }
 
-function getChannelStats(part, channelIds, max) {
-  Logger.log(channelIDs);
-  return [ 'LOVEBITES' ];
+function getChannelStats(part, channelIDs, max) {
+  const __LIST = YouTube.Channels.list(part, { id: channelIDs, maxResults: max });
+  const __CHANNELSTATS = __LIST.items.map(item => mapChannelResult(item, part));
+  const __CHANNELMAP = { };
+  let channelStats = [];
 
-  const __LIST = YouTube.Channels.list(part, { id: ids, maxResults: max });
-  const __CHANSTATS = __LIST.items.map(item => mapResult(item, part));
+  __CHANNELSTATS.map(item => (__CHANNELMAP[item[0]] = item));
 
-  return __CHANSTATS;
+  for (channelID of channelIDs.split(',')) {
+    channelStats = channelStats.concat([ __CHANNELMAP[channelID] ]);
+  }
+
+  return channelStats;
 }
 
 function mapResult(item, part) {
@@ -100,7 +118,7 @@ function mapResult(item, part) {
   let data = [];
 
   for (part of __PARTS) {
-      const __ID = item.id;
+      const __ID = (((typeof item.id) === 'string') ? { videoId : item.id, kind: item.kind } : item.id);
       const __SN = item.snippet;
       const __ST = item.statistics;
   
@@ -108,9 +126,38 @@ function mapResult(item, part) {
         case 'id':          data = data.concat([ __ID.videoId, __ID.channelId, __ID.playlistId, __ID.kind ]);
                             break;
         case 'snippet':     data = data.concat([ __SN.title, __SN.description, __SN.publishedAt,
-                                            __SN.channelId, __SN.channelTitle ]);
+                                                  __SN.channelId, __SN.channelTitle ]);
                             break;
         case 'statistics':  data = data.concat([ __ST.viewCount, __ST.likeCount, __ST.commentCount ]);
+                            break;
+        default:            break;
+      }
+  }
+
+  return data;
+}
+
+function mapChannelResult(item, part) {
+  const __PARTS = part.split(',').map(part => part.trim());
+  let data = [];
+
+  for (part of __PARTS) {
+      const __ID = item.id;
+      const __KIND = item.kind;
+      const __SN = item.snippet;
+      const __ST = item.statistics;
+      const __BS = item.brandingSettings;
+  
+      switch (part) {
+        case 'id':          data = data.concat([ __ID, __KIND ]);
+                            break;
+        case 'snippet':     data = data.concat([ __SN.title, __SN.description, __SN.publishedAt, __SN.country ]);
+                            break;
+        case 'statistics':  data = data.concat([ __ST.viewCount, __ST.subscriberCount, __ST.videoCount ]);
+                            break;
+        case 'brandingSettings': const __CH = ((item.brandingSettings) ? item.brandingSettings.channel : null);
+                            data = data.concat([ __CH.title, __CH.description ]);
+                            break;
         default:            break;
       }
   }
