@@ -1,22 +1,32 @@
 ﻿
 // Parameters for the sheet and the API...
-  const __ROW = 2;
-  const __COL = 1;
-  const __CHANNELCOL = 8;
-  const __STATSCOL = __CHANNELCOL + 2;
-  const __MAX = 50;  // 0..50, default: 5
+const __ROW = 2;
+const __COL = 1;
+const __CHANNELCOL = 8;
+const __STATSCOL = __CHANNELCOL + 6;  // See makeResult() and adapt!
+const __MAX = 50;  // 0..50, default: 5
 
 // Parameters for YTsearch...
-  const __QUERY = "lovebites";
-  const __PART = "id, snippet";
-  const __STATPART = "statistics";
-  const __ORDER = 'date';  // default: 'relevance'
-  const __TYPE = 'video';  // default: 'video,channel,playlist'
+const __QUERY = "lovebites";
+const __PART = "id, snippet";
+const __STATPART = "statistics, contentDetails, topicDetails, status, liveStreamingDetails";
+const __CHANPART = "statistics";  // 'statistics, brandingSettings, localizations'
+const __ORDER = 'date';  // default: 'relevance'
+const __TYPE = 'video';  // default: 'video,channel,playlist'
 
 // Parameter for YTdetails...
-  const __STATSPART = "id, snippet, statistics";
-  // 'id, snippet, statistics, brandingSettings, localizations'
-  const __CHANNELPART = 'id, snippet, statistics';
+const __STATSPART = __PART + ", " + __STATPART;
+const __CHANNELPART = __PART + ", " + __CHANPART;
+
+function runYTall() {
+  const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
+  const __IDS = __INFO.map(info => safeID(info[0], info[1], info[2])).join(',');
+  const __CHANNELIDS = __INFO.map(info => info[__CHANNELCOL - 1]).join(',');
+  const __STATS = getStats(__IDS);
+  const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
+
+  return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
+}
 
 function runYTsearch() {
   const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
@@ -31,7 +41,7 @@ function runYTdetails() {
   const __IDCOL = __ACTIVESHEET.getRange(__ROW, __COL, __MAX, 1).getValues();
   const __IDS = __IDCOL.join(',');
   const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
-  const __CHANNELIDS = __CHANNELIDCOL.join(',');
+  const __CHANNELIDS = __CHANNELIDCOL.join(',');  // Empty entries!
   const [ __INFO, __STATS ] = getInfoStats(__IDS);
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
 
@@ -54,6 +64,7 @@ function setYTsearchData(row, col, info, stats) {
 }
 
 function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {
+//  Logger.log(info); Logger.log(stats); Logger.log(channelStats);
   const __ACTIVESHEET = getActiveSheet();
   const __INFOLEN = ((info && info.length) ? info.length : 0);
   const __STATLEN = ((stats && stats.length) ? stats.length : 0);
@@ -107,7 +118,11 @@ function getChannelStats(part, channelIDs, max) {
   __CHANNELSTATS.map(item => (__CHANNELMAP[item[0]] = item));
 
   for (channelID of channelIDs.split(',')) {
-    channelStats = channelStats.concat([ __CHANNELMAP[channelID] ]);
+    if (channelID) {
+      const __ENTRY = __CHANNELMAP[channelID];
+
+      channelStats = channelStats.concat([ __ENTRY ]);
+    }
   }
 
   return channelStats;
@@ -120,19 +135,40 @@ function mapResult(item, part) {
   for (part of __PARTS) {
       const __ID = (((typeof item.id) === 'string') ? { videoId : item.id, kind: item.kind } : item.id);
       const __SN = item.snippet;
-      const __ST = item.statistics;
+      const __CD = item.contentDetails;
+      const __TD = item.topicDetails;
+      const __TC = (__TD && __TD.topicCategories);
+      const __SI = item.statistics;
+      const __SU = item.status;
+      const __LS = item.liveStreamingDetails;
   
       switch (part) {
         case 'id':          data = data.concat([ __ID.videoId, __ID.channelId, __ID.playlistId, __ID.kind ]);
                             break;
         case 'snippet':     data = data.concat([ __SN.title, __SN.description, __SN.publishedAt,
-                                                  __SN.channelId, __SN.channelTitle ]);
+                                                  __SN.channelId, __SN.channelTitle,
+                                                  __SN.liveBroadcastContent,  // 'upcoming', 'live', 'none'
+                                                  __SN.categoryId, __SN.defaultAudioLanguage ]);
                             break;
-        case 'statistics':  data = data.concat([ __ST.viewCount, __ST.likeCount, __ST.commentCount ]);
+        case 'contentDetails': data = data.concat([ __CD.definition, __CD.caption, __CD.projection,
+                                                    __CD.licensedContent, __CD.dimension, __CD.duration ]);
+                            break;
+        case 'topicDetails': data = data.concat([ (__TC && __TC.join(" ")) ]);
+                            break;
+        case 'statistics':  data = data.concat([ __SI.viewCount, __SI.likeCount, __SI.commentCount ]);
+                            break;
+        case 'status':      data = data.concat([ __SU.license, __SU.embeddable, __SU.publicStatsViewable,
+                                                  __SU.madeForKids, __SU.privacyStatus, __SU.uploadStatus ]);
+                            break;
+        case 'liveStreamingDetails':
+                            data = data.concat([ (__LS && __LS.scheduledStartTime),
+                                                  (__LS && __LS.activeLiveChatId) ]);
                             break;
         default:            break;
       }
   }
+
+  data = data.concat([ item.toString() ]);  // for debugging purposes
 
   return data;
 }
@@ -145,15 +181,16 @@ function mapChannelResult(item, part) {
       const __ID = item.id;
       const __KIND = item.kind;
       const __SN = item.snippet;
-      const __ST = item.statistics;
+      const __SI = item.statistics;
       const __BS = item.brandingSettings;
   
       switch (part) {
         case 'id':          data = data.concat([ __ID, __KIND ]);
                             break;
-        case 'snippet':     data = data.concat([ __SN.title, __SN.description, __SN.publishedAt, __SN.country ]);
+        case 'snippet':     data = data.concat([ __SN.customUrl, __SN.title, __SN.description,
+                                                  __SN.publishedAt, __SN.country ]);
                             break;
-        case 'statistics':  data = data.concat([ __ST.viewCount, __ST.subscriberCount, __ST.videoCount ]);
+        case 'statistics':  data = data.concat([ __SI.viewCount, __SI.subscriberCount, __SI.videoCount ]);
                             break;
         case 'brandingSettings': const __CH = ((item.brandingSettings) ? item.brandingSettings.channel : null);
                             data = data.concat([ __CH.title, __CH.description ]);
@@ -161,6 +198,8 @@ function mapChannelResult(item, part) {
         default:            break;
       }
   }
+
+  data = data.concat([ item.toString() ]);  // for debugging purposes
 
   return data;
 }
