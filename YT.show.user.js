@@ -1,22 +1,14 @@
 // ==UserScript==
-// @name         YT.new
+// @name         YT.show
 // @namespace    http://youtube.com/
 // @version      0.10+lib
 // @copyright    2025+
 // @author       Sven Loges (SLC)
-// @description  YouTube-Markierungs-Script for Greasemonkey 4.0
+// @description  Light version of YT.new - Script for Greasemonkey 4.0
 // @include      /^https?://www\.youtube\.com/.*$/
 // @include      /^https?://youtu\.be/.*$/
-// @grant        GM.getValue
-// @grant        GM.setValue
-// @grant        GM.deleteValue
-// @grant        GM.registerMenuCommand
 // @grant        GM.info
 // @require      https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js
-// @grant        GM_getValue
-// @grant        GM_setValue
-// @grant        GM_deleteValue
-// @grant        GM_registerMenuCommand
 // @grant        GM_info
 // @run-at       document-idle
 // @require      https://eselce.github.io/GitTest/misc/OS2/lib/lib.all.js
@@ -41,7 +33,7 @@ const __OPTCONFIG = {
                    'Type'      : __OPTTYPES.SD,
                    'Hidden'    : false,
                    'Serial'    : true,
-                   'Permanent' : !true,
+                   'Permanent' : false,
                    'Default'   : [ "LOVE.?BITES?",
                                   "Miyako",
                                   "Fami[^l]",
@@ -65,56 +57,6 @@ const __OPTCONFIG = {
                    'Space'     : 0,
                    'Label'     : "Suchmuster:"
                },
-    'askNew' : {   // Angabe, ob neue Links bestaetigt werden sollen (true = anzeigen, false = nicht anzeigen)
-                   'Name'      : "askNew",
-                   'Type'      : __OPTTYPES.SW,
-                   'Default'   : !false,
-                   'Action'    : __OPTACTION.NXT,
-                   'Label'     : "Abfrage ein",
-                   'Hotkey'    : 'A',
-                   'AltLabel'  : "Abfrage aus",
-                   'AltHotkey' : 'A',
-                   'FormLabel' : "Abfrage"
-               },
-    'alertInconsistency' : {  // Angabe, eine Meldung kommen soll, wenn VID und ANCHOR nicht zusammenpassen (true = anzeigen, false = nicht anzeigen)
-                   'Name'      : "alertInconsistency",
-                   'Type'      : __OPTTYPES.SW,
-                   'Default'   : false,
-                   'Action'    : __OPTACTION.NXT,
-                   'Label'     : "Konsistenzmeldung ein",
-                   'Hotkey'    : 'K',
-                   'AltLabel'  : "Konsistenzmeldung aus",
-                   'AltHotkey' : 'K',
-                   'FormLabel' : "Konsistenzmeldung"
-               },
-    'Links' : {    // Datenspeicher fuer URL-Liste zu den neuen VIDs
-                   'Name'      : "Links",
-                   'Type'      : __OPTTYPES.SD,
-                   'Hidden'    : false,
-                   'Serial'    : true,
-                   'Permanent' : true,
-                   'Default'   : { },
-                   'Submit'    : undefined,
-                   'Cols'      : 36,
-                   'Rows'      : 100,
-                   'Replace'   : null,
-                   'Space'     : 0,
-                   'Label'     : "VID-URLs:"
-               },
-    'newLinks' : {    // Datenspeicher fuer Liste der URLs zu neuen Videos (sowas wie die values() von 'Links'), ohne die 'N'-Eintraege
-                   'Name'      : "newLinks",
-                   'Type'      : __OPTTYPES.SD,
-                   'Hidden'    : false,
-                   'Serial'    : true,
-                   'Permanent' : true,
-                   'Default'   : [],
-                   'Submit'    : undefined,
-                   'Cols'      : 36,
-                   'Rows'      : 100,
-                   'Replace'   : null,
-                   'Space'     : 0,
-                   'Label'     : "New URLs:"
-               },
     'reset' : {           // Optionen auf die "Werkseinstellungen" zuruecksetzen
                    'FormPrio'  : undefined,
                    'Name'      : "reset",
@@ -130,6 +72,7 @@ const __OPTCONFIG = {
                    'Type'      : __OPTTYPES.MC,
                    'ValType'   : 'String',
                    'Choice'    : Object.keys(__OPTMEM),
+                   'Default'   : __OPTMEM.inaktiv,
                    'Action'    : __OPTACTION.NXT,
                    'Label'     : "Speicher: $",
                    'Hotkey'    : 'c',
@@ -140,6 +83,7 @@ const __OPTCONFIG = {
                    'Name'      : "oldStorage",
                    'Type'      : __OPTTYPES.SD,
                    'ValType'   : 'String',
+                   'Default'   : 'inaktiv',
                    'PreInit'   : true,
                    'AutoReset' : true,
                    'Hidden'    : true
@@ -192,44 +136,6 @@ function safeVID(url, dflt = null, prefix = __VPREFIX) {  // strips url or VID t
                         /^\[.*\] https?:\/\/youtu\.be\/([0-9A-Za-z_\-]{11})\/?(?:(?:\?\S+=\S+)(?:&\S+=\S+)*)?(?: DONE \(.*\))?$/ ];
 
     return safeID(url, dflt, __PATTERNS, prefix);
-}
-
-function sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-}
-
-function cleanURL(url, dflt = null, prefix = __VPREFIX) {  // strips url or VID to clean video-URL... (without additional parameters)
-    const __URL = (url || "");
-    const __VID = (safeVID(url, dflt, prefix) || "");
-    const __LEN = __VID.length;
-    const __POS = __URL.indexOf(__VID);
-    const __CLEANURL = ((__POS < 0) ? "#ERROR" : __URL.substring(0, __POS + __LEN));
-
-    return __CLEANURL;
-}
-
-function clearObj(obj, keepRejected = true) {  // slow, but clean and straight forward, can be used for constant objects
-    for (const key of Object.getOwnPropertyNames(obj)) {
-        if ((! keepRejected) || (obj[key] !== __FLAG_N)) {
-            delete obj[key];
-        }
-    }
-
-    return obj;
-}
-
-function clearedObj(obj, keepRejected = true) {  // fast, better version of obj = { }, cannot be used for constant objects
-    const __OBJ = Object.create(Object.getPrototypeOf(obj), { });
-
-    if (keepRejected) {  // reconstruct all rejections...
-        for (let [key, value] of Object.entries(obj)) {
-            if (value === __FLAG_N) {
-                __OBJ[key] = value;
-            }
-        }
-    }
-
-    return __OBJ;
 }
 
 function nodeList2Array(list) {
@@ -308,42 +214,8 @@ function trimMS(s) {
     return __RET;
 }
 
-const __DYNVIDS = { };
-
-const __FLAG_NEW = 'NEW';
+//const __FLAG_NEW = 'NEW';
 const __FLAG_N = 'N'
-
-async function initIDs(optSet = __MAIN.optSet, cleanUp = false) {
-    __LOG[0]("initIDs()");
-
-    const __OPTSET = optSet;
-    const __STOREDVIDS = await __OPTSET.getOptValue('Links');
-    const __CLEANUP = cleanUp;
-
-    for (let [key, value] of Object.entries(__STOREDVIDS)) {
-        const __VALUE = (value || __FLAG_N);
-        const __CLEANURL = cleanURL(__VALUE);
-
-        __LOG[1]("initIDs()", key, '=', value);
-
-        __DYNVIDS[key] = ((__CLEANUP && __CLEANURL) ? __CLEANURL : __VALUE);
-    }
-
-    __LOG[0]("initIDs():", "Data initialized!", __DYNVIDS);
-
-    //await acceptURL("https://www.youtube.com/watch?v=w3i505oOOjI");
-    //await acceptURL("https://www.youtube.com/watch?v=flIyW7NiKUs");
-    //await acceptURL("https://www.youtube.com/watch?v=-MTvsKdt8P0");
-    //await acceptURL("https://www.youtube.com/watch?v=AlwcqI2Vpec");
-    //await rejectURL("https://www.youtube.com/shorts/vhaDlfvpXqw");
-    //await rejectURL("https://www.youtube.com/shorts/13FG40ISI9s");
-    //await rejectURL("https://www.youtube.com/shorts/OJ-R6_pDGaY");
-    //await deleteURL("https://www.youtube.com/watch?v=c9ZqoqCPyd0&list=PLghYzmkF89GlIUtG0vYqyludt0ZQYUTxj&index=1&pp=iAQB8AUB");
-
-    logIDs();
-
-    return true;
-}
 
 async function findID(vid, raw = false) {
     const __VID = vid;
@@ -362,140 +234,9 @@ async function findID(vid, raw = false) {
         }
     } else if ((typeof __NEWID) !== "undefined") {
         return __NEWID;  // Found in static list, containing VIDs that were not yet integrated into the data base, provided by GitHub!
-    } else {  // Checking the dynamic list in the option "Links"...
-        const __ID = __DYNVIDS[__VID];
-
-        if (__RAW) {  // __RAW: return raw 'N' if rejected ID, URL otherwise, undefined if not found!
-            return __ID;
-        } else if (__ID === __FLAG_N) {
-            return null;  // null for 'N' (rejected ID)
-        } else if (__ID) {
-            return __FLAG_NEW;  // 'NEW' (valid URL found)
-        } else {
-            return __ID;  // undefined (not found)
-        }
+    } else {
+        return undefined;  // Not found in static lists!
     }
-}
-
-async function setID(vid, id) {
-    const __OPTSET = __MAIN.optSet;
-    const __VID = vid;
-    const __ID = id;
-
-    if (__VID) {
-        if (__ID) {
-            __DYNVIDS[__VID] = __ID;
-        } else {
-            delete __DYNVIDS[__VID];
-        }
-    }
-
-    //__LOG[0](__DYNVIDS);
-    //clearObj(__DYNVIDS);
-    //logIDs();
-
-    return __OPTSET.setOpt('Links', __DYNVIDS, false);
-}
-
-async function acceptURL(url, text, channelAdd) {
-    const __VID = safeVID(url);
-    const __CLEANURL = cleanURL(url);
-    const __TEXT = (text ? '(' + text + ')' : "");
-    const __CHANNELADD = channelAdd;
-
-    __LOG[0](__VID, '=', __CLEANURL + __CHANNELADD, __TEXT);
-
-    return setID(__VID, __CLEANURL);
-}
-
-async function rejectURL(url, text, channelAdd) {
-    const __VID = safeVID(url);
-    const __NOID = __FLAG_N;
-    const __TEXT = (text ? '(' + text + ')' : "");
-    const __CHANNELADD = channelAdd;
-
-    __LOG[0]("Will no longer ask for", __VID + __CHANNELADD, __TEXT);
-
-    return setID(__VID, __NOID);
-}
-
-async function deleteURL(url, text, channelAdd) {
-    const __VID = safeVID(url);
-    const __FREEID = null;
-    const __TEXT = (text ? '(' + text + ')' : "");
-    const __CHANNELADD = channelAdd;
-
-    __LOG[0]("Ignoring", __VID + __CHANNELADD, __TEXT);
-
-    return setID(__VID, __FREEID);
-}
-
-function showListValues(obj, showKeys = false, showIndex = false, filter = null, objFormat = false, fixValue = null) {
-    const __OBJ = obj;
-    const __FILTER = (filter || (value => true));
-    const __ENTRIES = Object.entries(__OBJ);
-    const __FILTERED = __ENTRIES.filter(__FILTER);
-    const __LEN = __FILTERED.length;
-    const __SHOWKEYS = showKeys;
-    const __SHOWINDEX = showIndex;
-    const __OBJFORMAT = objFormat;  // __OBJFORMAT has no index, but always keys!
-    const __FIXVALUE = fixValue;
-    let ret = (__LEN + " entries...\n");
-
-    __LOG[0]("All =", __ENTRIES.length, "entries", "\nFiltered =", ret);
-
-    __FILTERED.forEach(([key, value], index) => {
-            const __KEY = key;
-            const __VALUE = (__FIXVALUE || value);
-            const __INDEX = index;
-
-            ret = ret + (__OBJFORMAT ? ("'" + __KEY + "'   : '" + __VALUE + "',")
-                                     : ((__SHOWINDEX ? __INDEX + ": " : "") + (__SHOWKEYS ? __KEY + " = " : "") + __VALUE)) + '\n';
-        });
-
-    return ret;
-}
-
-function showIDs(rejected = false, showKeys = false, showIndex = false, objFormat = false, fixValue = null) {
-    const __REJECTED = rejected;
-    const __SHOWKEYS = showKeys;
-    const __SHOWINDEX = showIndex;
-    const __FILTER = (__REJECTED ? ([key, value]) => (value.toUpperCase() === "N")
-                                 : ([key, value]) => (value.toUpperCase() !== "N"));
-    const __OBJFORMAT = objFormat;
-    const __FIXVALUE = fixValue;
-
-    return showListValues(__DYNVIDS, __SHOWKEYS, __SHOWINDEX, __FILTER, __OBJFORMAT, __FIXVALUE);
-}
-
-function logIDs() {
-    const __ACCEPTED = false;
-    const __REJECTED = true;
-    const __SHOWKEYS = true;
-    const __NOKEYS = false;
-    const __NOINDEX = false;
-    const __OBJFORMAT = true;
-
-    __LOG[0]("Logging __DYNVIDS");
-
-    __LOG[2](showIDs(__REJECTED, __SHOWKEYS, __NOINDEX, __OBJFORMAT));
-    __LOG[2](showIDs(__ACCEPTED, __NOKEYS, __NOINDEX, __OBJFORMAT, __FLAG_NEW));
-    __LOG[2](showIDs(__ACCEPTED, __NOKEYS, __NOINDEX));
-}
-
-function askNewLink(vid, href, text, channelAdd) {
-    const __VID = vid;
-    const __HREF = href;
-    const __TEXT = (text || "(null)");
-    const __CHANNELADD = channelAdd;
-    const __MESSAGE = __TEXT + '\n\n' + "Accept " + __VID + __CHANNELADD + " (Y/N)?";
-    const __DEFAULT = 'Y';
-
-    __LOG[0](__MESSAGE);
-
-    const __ANSWER = prompt(__MESSAGE, __DEFAULT);
-
-    return (__ANSWER && (__ANSWER.toUpperCase() !== 'N'));
 }
 
 //const __SEARCHPATTERN = /(LOVE.?BITES?|Miyako|Fami[^l]|Asami|Midori|Haru(na|pi)|Miho|Wolf.?pack|DESTROSE|21g|DROP OF JOKER|SONIC LOVER RECKLESS|Gekijo|METALicche|Lust.?Queen|CHAOS.?CONTROL)/i;
@@ -570,7 +311,7 @@ function getYTinfo(anchor) {
 
     if ((! __VID) || (__ANCHOR.YTlogged != __VID)) {
         if (__VID) {
-            __LOG[1](__INFO);
+            //__LOG[1](__INFO);
         }
 
         __ANCHOR.YTlogged = __VID;
@@ -632,7 +373,7 @@ function markAnchorNull(anchor, vid) {
     const __ANCHOR = anchor;
     const __VID = vid;
     const __BOLD = true;
-    const __COLOR = 'darkyellow';
+    const __COLOR = 'orange';
 
     return markAnchorEx(__ANCHOR, __BOLD, __COLOR, '(' + __VID + ')');
 }
@@ -644,22 +385,16 @@ async function markAnchor(anchor) {
     let ret = __ANCHOR;
 
     if (__INFO) {
-        const __HREF = __INFO.href;
+        //const __HREF = __INFO.href;
         const __VID = __INFO.vid;
-        const __TEXTRAW = __INFO.textRaw;
+        //const __TEXTRAW = __INFO.textRaw;
         const __TEXT = __INFO.text;
         const __CHANNEL = __INFO.channel;
         const __CHANNELADD = (__CHANNEL ? " / '" + __CHANNEL + "'" : "");
 
         if (__ANCHOR.YTnewMark) {
             if (__VID != __ANCHOR.YTnewMark) {
-                const __SHOWALERT = await __OPTSET.getOptValue('alertInconsistency', false);
-
                 __LOG[0](__ANCHOR.YTnewMark, "=>", __VID, __TEXT);
-
-                if (__SHOWALERT) {
-                    showAlert(__VID + " != " + __ANCHOR.YTnewMark, __TEXT);
-                }
 
                 __ANCHOR.YTnewMark = __VID;  // Don't show message again for this entry!
 
@@ -673,42 +408,23 @@ async function markAnchor(anchor) {
             const __REJECTED = (__ID === __FLAG_N);
 
             if (__ID && ! __REJECTED) {
-                __LOG[0]("Found", __VID, __ID);
+                //__LOG[0]("Found", __VID, __ID);
             } else if (__REJECTED) {
-                __LOG[0]("Rejected", __VID);
+                //__LOG[0]("Rejected", __VID);
             } else {
-                __LOG[0]("Checked", __VID);
+                //__LOG[0]("Checked", __VID);
             }
 
             __ANCHOR.YTnewMark = __VID;
 
             if (__ID && ! __REJECTED) {
                 ret = markAnchorOK(__ANCHOR, __VID, __ID);
-            } else {
-                if (matchSearch(__TEXT)) {
-                    const __ASKNEW = await __OPTSET.getOptValue('askNew', false);
-                    let addNew = false;
+            } else if (__REJECTED) {
+                ret = markAnchorNo(__ANCHOR, __VID);
+            } else if (matchSearch(__TEXT)) {
+                //__LOG[0](__VID + __CHANNELADD, "ignored", '(' + __TEXT + ')');
 
-                    if (__ASKNEW && ! __REJECTED) {
-                        addNew = askNewLink(__VID, __HREF, __TEXT, __CHANNELADD);
-                    }
-
-                    if (addNew === null) {  // abgebrochen, keine Festlegung!
-                        __LOG[0](__VID + __CHANNELADD, "ignored", '(' + __TEXT + ')');
-
-                        //ret = markAnchorNull(__ANCHOR, __VID, __ID);
-                    } else if (addNew) {
-                        const __ID = __FLAG_NEW;
-
-                        await acceptURL(__HREF, __TEXT, __CHANNELADD);
-
-                        ret = markAnchorOK(__ANCHOR, __VID, __ID);
-                    } else {
-                        await rejectURL(__VID, __TEXT, __CHANNELADD);
-
-                        ret = markAnchorNo(__ANCHOR, __VID);
-                    }
-                }
+                ret = markAnchorNull(__ANCHOR, __VID);
             }
         }
     }
@@ -741,9 +457,6 @@ const procVideo = new PageManager("Video", null, () => {
 
         return {
                 'menuAnchor'  : getElement('DIV'),
-                'hideForm'    : {
-                                    'team'  : true
-                                },
                 'formWidth'   : 3,
                 'formBreak'   : 4
             };
@@ -760,9 +473,6 @@ const procSearch = new PageManager("Search", null, () => {
 
         return {
                 'menuAnchor'  : getElement('DIV'),
-                'hideForm'    : {
-                                    'team'  : true
-                                },
                 'formWidth'   : 3,
                 'formBreak'   : 4
             };
@@ -786,17 +496,7 @@ const procSearch = new PageManager("Search", null, () => {
 // 'formBreak': Elementnummer des ersten Zeilenumbruchs
 // return Gefuelltes Objekt mit den gesetzten Optionen
 async function prepareOptions(optSet, optParams) {
-    const __CLEANUP = !false;
     const __REFLAGS = 'i';
-
-    // Werte aus der HTML-Seite ermitteln...
-    //const __SAISON = 1;
-
-    // ... und abspeichern...
-    //optSet.setOpt('saison', __SAISON, false);
-
-    // Optionen sind gerade geladen, starte Initialisierung der IDs ueber gespeicherte Optionswerte...
-    await initIDs(optSet, __CLEANUP);
 
     // Optionen sind gerade geladen, starte Initialisierung der Suchmuster ueber gespeicherte Optionswerte...
     await initSearch(optSet, __REFLAGS);
@@ -825,9 +525,9 @@ const __MAINCONFIG = {
 
 // Selektor (Seite bzw. Parameter) fuer den richtigen PageManager...
 const __LEAFS = {
-                    'watch'        : 1, // Teamansicht Video
-                    'search'       : 2  // Teamansicht Search
-//                    , ''             : 0  // Teamansicht Video
+                    'watch'        : 1, // Ansicht Video
+                    'search'       : 2  // Ansicht Search
+//                    , ''             : 0  // Ansicht Video
                 };
 const __ITEM = 's';
 
