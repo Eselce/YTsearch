@@ -3,7 +3,7 @@
 const __ROW = 2;
 const __COL = 1;
 const __CHANNELCOL = 8;
-const __STATSCOL = __CHANNELCOL + 6;  // See makeResult() and adapt!
+const __STATSCOL = __CHANNELCOL + 9;  // See makeResult() and adapt!
 const __MAX = 50;  // 0..50, default: 5
 
 // Parameters for YTsearch...
@@ -85,33 +85,39 @@ function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {
 
 function getSearchInfo(query, max, order, type) {
   const __SELECT = __PART;
+  const __EXTRACT = __SELECT;
   const __LIST = YouTube.Search.list(__SELECT,
                     { q: query, maxResults: max, order: order, type: type, safeSearch: 'none' });
-  const __RET = __LIST.items.map(item => mapResult(item, __SELECT));
+  const __RET = __LIST.items.map(item => mapResult(item, __EXTRACT));
 
   return __RET;
 }
 
 function getStats(IDs) {
-  const __SELECT = __STATPART;
+  const __SELECT = __STATSPART;
+  const __EXTRACT = __STATPART;
   const __LIST = YouTube.Videos.list(__SELECT, { id: IDs });
-  const __STATS = __LIST.items.map(item => mapResult(item, __SELECT));
+  const __STATS = __LIST.items.map(item => mapResult(item, __EXTRACT));
 
   return __STATS;
 }
 
 function getInfoStats(IDs) {
   const __SELECT = __STATSPART;
+  const __EXTRACT = __STATPART;
+  const __EXTRACTINFO = __PART;
   const __LIST = YouTube.Videos.list(__SELECT, { id: IDs });
-  const __INFO = __LIST.items.map(item => mapResult(item, __PART));
-  const __STATS = __LIST.items.map(item => mapResult(item, __STATPART));
+  const __INFO = __LIST.items.map(item => mapResult(item, __EXTRACTINFO));
+  const __STATS = __LIST.items.map(item => mapResult(item, __EXTRACT));
 
   return [ __INFO, __STATS ];
 }
 
 function getChannelStats(part, channelIDs, max) {
-  const __LIST = YouTube.Channels.list(part, { id: channelIDs, maxResults: max });
-  const __CHANNELSTATS = __LIST.items.map(item => mapChannelResult(item, part));
+  const __SELECT = part;
+  const __EXTRACT = __SELECT;
+  const __LIST = YouTube.Channels.list(__SELECT, { id: channelIDs, maxResults: max });
+  const __CHANNELSTATS = __LIST.items.map(item => mapChannelResult(item, __EXTRACT));
   const __CHANNELMAP = { };
   let channelStats = [];
 
@@ -130,42 +136,54 @@ function getChannelStats(part, channelIDs, max) {
 
 function mapResult(item, part) {
   const __PARTS = part.split(',').map(part => part.trim());
+  const __ID = (((typeof item.id) === 'string') ? { videoId : item.id, kind: item.kind } : item.id);
+  const __SN = item.snippet;
+  const __CD = item.contentDetails;
+  const __TD = item.topicDetails;
+  const __TC = (__TD && __TD.topicCategories);
+  const __SI = item.statistics;
+  const __SU = item.status;
+  const __LS = item.liveStreamingDetails;
   let data = [];
 
   for (part of __PARTS) {
-      const __ID = (((typeof item.id) === 'string') ? { videoId : item.id, kind: item.kind } : item.id);
-      const __SN = item.snippet;
-      const __CD = item.contentDetails;
-      const __TD = item.topicDetails;
-      const __TC = (__TD && __TD.topicCategories);
-      const __SI = item.statistics;
-      const __SU = item.status;
-      const __LS = item.liveStreamingDetails;
-  
-      switch (part) {
-        case 'id':          data = data.concat([ __ID.videoId, __ID.channelId, __ID.playlistId, __ID.kind ]);
-                            break;
-        case 'snippet':     data = data.concat([ __SN.title, __SN.description, __SN.publishedAt,
-                                                  __SN.channelId, __SN.channelTitle,
-                                                  __SN.liveBroadcastContent,  // 'upcoming', 'live', 'none'
-                                                  __SN.categoryId, __SN.defaultAudioLanguage ]);
-                            break;
-        case 'contentDetails': data = data.concat([ __CD.definition, __CD.caption, __CD.projection,
-                                                    __CD.licensedContent, __CD.dimension, __CD.duration ]);
-                            break;
-        case 'topicDetails': data = data.concat([ (__TC && __TC.join(" ")) ]);
-                            break;
-        case 'statistics':  data = data.concat([ __SI.viewCount, __SI.likeCount, __SI.commentCount ]);
-                            break;
-        case 'status':      data = data.concat([ __SU.license, __SU.embeddable, __SU.publicStatsViewable,
-                                                  __SU.madeForKids, __SU.privacyStatus, __SU.uploadStatus ]);
-                            break;
-        case 'liveStreamingDetails':
-                            data = data.concat([ (__LS && __LS.scheduledStartTime),
-                                                  (__LS && __LS.activeLiveChatId) ]);
-                            break;
-        default:            break;
-      }
+    switch (part) {
+      case 'id':          data = data.concat([ __ID.videoId, __ID.channelId, __ID.playlistId, __ID.kind ]);
+                          break;
+      case 'snippet':     data = data.concat([ __SN.title, __SN.description,
+                                                isoTime2de(__SN.publishedAt),
+                                                __SN.channelId, __SN.channelTitle,
+                                                __SN.liveBroadcastContent,  // 'upcoming', 'live', 'none'
+                                                __SN.categoryId, __SN.defaultAudioLanguage,
+                                                isoTime2unix(__SN.publishedAt), isoTime2rel(__SN.publishedAt) ]);
+                          break;
+      case 'contentDetails': data = data.concat([ __CD.definition, __CD.caption, __CD.projection,
+                                                  __CD.licensedContent, __CD.dimension, __CD.duration ]);
+                          break;
+      case 'topicDetails': data = data.concat([ (__TC && __TC.join(" ")) ]);
+                          break;
+      case 'statistics':  data = data.concat([ __SI.viewCount, __SI.likeCount, __SI.commentCount ]);
+                          break;
+      case 'status':      data = data.concat([ __SU.license, __SU.embeddable, __SU.publicStatsViewable,
+                                                __SU.madeForKids, __SU.privacyStatus, __SU.uploadStatus ]);
+                          break;
+      case 'liveStreamingDetails':
+                          data = data.concat([ (__LS && isoTime2de(__LS.scheduledStartTime)),
+                                                (__LS && isoTime2unix(__LS.scheduledStartTime)),
+                                                (__LS && isoTime2rel(__LS.scheduledStartTime)),
+                                                (__LS && __LS.activeLiveChatId) ]);
+
+                          // Paste string for Discord...
+                          const __PREMIERE = ((__SN.liveBroadcastContent === 'none') ? '' : "Premiere ")
+                                              + ((__SN.liveBroadcastContent === 'live') ? "NOW " : '') + '('; 
+                          const __DISCORD = ((__SN.liveBroadcastContent == 'none') ? '[' + (__SN && isoTime2rel(__SN.publishedAt)) + "] "
+                                                                      : __PREMIERE + (__LS && isoTime2rel(__LS.scheduledStartTime)) + ") ")
+                                              + "https://youtu.be/" + __ID.videoId;
+
+                          data = data.concat([ __DISCORD ]);
+                          break;
+      default:            break;
+    }
   }
 
   data = data.concat([ item.toString() ]);  // for debugging purposes
@@ -175,45 +193,33 @@ function mapResult(item, part) {
 
 function mapChannelResult(item, part) {
   const __PARTS = part.split(',').map(part => part.trim());
+  const __ID = item.id;
+  const __KIND = item.kind;
+  const __SN = item.snippet;
+  const __SI = item.statistics;
+  const __BS = item.brandingSettings;
   let data = [];
 
   for (part of __PARTS) {
-      const __ID = item.id;
-      const __KIND = item.kind;
-      const __SN = item.snippet;
-      const __SI = item.statistics;
-      const __BS = item.brandingSettings;
-  
-      switch (part) {
-        case 'id':          data = data.concat([ __ID, __KIND ]);
-                            break;
-        case 'snippet':     data = data.concat([ __SN.customUrl, __SN.title, __SN.description,
-                                                  __SN.publishedAt, __SN.country ]);
-                            break;
-        case 'statistics':  data = data.concat([ __SI.viewCount, __SI.subscriberCount, __SI.videoCount ]);
-                            break;
-        case 'brandingSettings': const __CH = ((item.brandingSettings) ? item.brandingSettings.channel : null);
-                            data = data.concat([ __CH.title, __CH.description ]);
-                            break;
-        default:            break;
-      }
+    switch (part) {
+      case 'id':          data = data.concat([ __ID, __KIND ]);
+                          break;
+      case 'snippet':     data = data.concat([ __SN.customUrl, __SN.title, __SN.description,
+                                                isoTime2de(__SN.publishedAt), isoTime2unix(__SN.publishedAt),
+                                                isoTime2rel(__SN.publishedAt), __SN.country ]);
+                          break;
+      case 'statistics':  data = data.concat([ __SI.viewCount, __SI.subscriberCount, __SI.videoCount ]);
+                          break;
+      case 'brandingSettings': const __CH = ((item.brandingSettings) ? item.brandingSettings.channel : null);
+                          data = data.concat([ __CH.title, __CH.description ]);
+                          break;
+      default:            break;
+    }
   }
 
   data = data.concat([ item.toString() ]);  // for debugging purposes
 
   return data;
-}
-
-function testMap() {
-  const __ITEM = { id: { videoId: 'cEAmmT-T0Fg', kind: 'youtube#video' },
-                    snippet: { publishedAt: '2025-01-23T16:17:20Z',
-                      description: 'This is a reaction to the song "we are the Resurrection" performed by LOVEBITES live from Memorial for the Warrior\'s Soul.',
-                      channelId: 'UCMRBbkpiK8JnDg9kTQdYPtA', channelTitle: 'vintage_sol',
-                      title: 'LOVEBITES-We are the Resurrection OLV(1st time reaction)',
-                      publishTime: '2025-01-23T16:17:20Z' } };
-  const __RET = mapResult(__ITEM, __PART);
-
-  Logger.log(__RET);
 }
 
 function safeID(video, channel, playlist) {
@@ -229,4 +235,60 @@ function getActiveSheet() {
   const __ACTIVESHEET = __SHEET.getActiveSheet();
 
   return __ACTIVESHEET;
+}
+
+function isoTime2unix(isoTime) {
+  const __DATE = new Date(isoTime);
+
+  return Number.parseInt((__DATE / 1000).toFixed(0));  // Convert ms to s
+}
+
+function isoTime2discord(isoTime, flag = 'R') {
+  const __TIMESTAMP = isoTime2unix(isoTime);
+  const __DISCORD = '<t:' + __TIMESTAMP + ':' + flag.toUpperCase() + '>';
+
+  return __DISCORD;
+}
+
+function isoTime2rel(isoTime) {
+  return isoTime2discord(isoTime, 'R');
+}
+
+function isoTime2de(isoTime) {
+  const __DATE = new Date(isoTime);
+  const __LOCAL = __DATE.toLocaleString('de-DE', { timeZone: 'CET' });
+
+  return __LOCAL;  // .replace(',', '');
+}
+
+function testMap() {
+  const __ITEM = { id: { videoId: 'cEAmmT-T0Fg', kind: 'youtube#video' },
+                    snippet: { publishedAt: '2025-01-23T16:17:20Z',
+                      description: 'This is a reaction to the song "we are the Resurrection" performed by LOVEBITES live from Memorial for the Warrior\'s Soul.',
+                      channelId: 'UCMRBbkpiK8JnDg9kTQdYPtA', channelTitle: 'vintage_sol',
+                      title: 'LOVEBITES-We are the Resurrection OLV(1st time reaction)',
+                      publishTime: '2025-01-23T16:17:20Z' } };
+  const __RET = mapResult(__ITEM, __PART);
+
+  Logger.log(__RET);
+}
+
+function testIsoTime() {
+  const __TIME = '2025-01-23T16:17:20Z';
+  const __NOW = new Date();
+  const __TIMEUNIX = isoTime2unix(__TIME);
+  const __NOWUNIX = isoTime2unix(__NOW);
+  const __TIMEDE = isoTime2de(__TIME);
+  const __NOWDE = isoTime2de(__NOW);
+  const __TIMEREL = isoTime2rel(__TIME);
+  const __NOWREL = isoTime2rel(__NOW);
+
+  Logger.log({ time: __TIMEUNIX });
+  Logger.log({ now: __NOWUNIX });
+
+  Logger.log({ time_de: __TIMEDE });
+  Logger.log({ now_de: __NOWDE });
+
+  Logger.log({ time_rel: __TIMEREL });
+  Logger.log({ now_rel: __NOWREL });
 }
