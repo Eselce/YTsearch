@@ -6,6 +6,8 @@ const __PASTESHEETNAME = 'Paste';
 const __VIDCOL = __COL;
 const __CHANNELCOL = 8;
 const __STATSCOL = __CHANNELCOL + 9;  // 'Q' See makeResult() and adapt to correct value!
+const __CHANNELSCOL = __STATSCOL + 24;  // 'AO' See makeResult() and adapt to correct value!
+const __HANDLECOL = __CHANNELSCOL + 2;  // 'AQ' See makeChannelResult() and adapt to correct value!
 const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
 const __SHOWITEM = false;  // Do we need the raw package?
 const __SHORTDESC = true;  // Cut description fields in order to not break the layout?
@@ -58,7 +60,7 @@ function runYTsearch() {
   return setYTsearchData(__ROW, __COL, __INFO, __STATS);
 }
 
-// Main: Get IDs from first column and ChannelIDs from eigths column (row 2..51)
+// Main: Get IDs from first column and ChannelIDs from eigth column (row 2..51)
 // and get STATS and CHANNELS...
 function runYTdetails() {
   const __ACTIVESHEET = getPasteSheet();
@@ -72,14 +74,53 @@ function runYTdetails() {
   return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
+// Main: Get IDs from first column and ChannelIDs from eigth column (row 2..51)
+// and get STATS and CHANNELS...
+function runYTdetails() {
+  const __ACTIVESHEET = getPasteSheet();
+  const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
+  const __CHANNELIDS = __CHANNELIDCOL.join(',');  // Empty entries!
+  const __INFO = [];
+  const __STATS = [];
+  const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
+
+  return setYTdetailsData(__ROW, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
+}
+
+// Main: Get IDs from first column and ChannelIDs from 43th column (row 2..51)
+// and get STATS and CHANNELS...
+function runYThandleDetails() {
+  const __ACTIVESHEET = getPasteSheet();
+  const __CELL = __ACTIVESHEET.getActiveCell();  // or getCurrentCell()?
+  const __ROW = __CELL.getRow();
+  const __MAX = 1;
+  const __CHANNELHANDLECOL = __ACTIVESHEET.getRange(__ROW, __HANDLECOL, __MAX, 1).getValues();
+  const __CHANNELHANDLE = __CHANNELHANDLECOL.join(',');  // Empty entries!
+  const __INFO = [];
+  const __STATS = [];
+  const __CHANNELSTATS = getChannelStatsForHandle(__CHANNELPART, __CHANNELHANDLE, __MAX);
+
+  return setYTdetailsData(__ROW, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
+}
+
 // Main: Run runYTAll(), but only if you are active on the 'Paste' sheet!
 function triggerYTall() {
   return (checkVidCol() && runYTall());
 }
 
-// Main: Run runYTdetailsAll(), but only if you are changing a videoID!
+// Main: Run runYTdetailsAll(), but only if you are changing a videoID (column 'A')!
 function triggerYTdetailsAll() {
   return (checkVidCol() && runYTdetailsAll());
+}
+
+// Main: Run runYTchannelDetails(), but only if you are changing a channelID (column 'H')!
+function triggerYTchannelDetails() {
+  return (checkChannelCol() && runYTdetails());
+}
+
+// Main: Run runYThandleDetails(), but only if you are changing a handle of a channel (column 'AQ')!
+function triggerYThandleDetails() {
+  return (checkHandleCol() && runYThandleDetails());
 }
 
 function setYTsearchData(row, col, info, stats) {
@@ -148,16 +189,46 @@ function getInfoStats(IDs) {
 }
 
 function getChannelStats(parts, channelIDs, max) {
+  const __PARAMS = { id: channelIDs, maxResults: max };
+
+  return getChannelStatsEx(parts, __PARAMS);
+}
+
+function getChannelStatsForHandle(parts, handle, max) {
+  const __PARAMS = { forHandle: handle, maxResults: max };
+
+  return getChannelStatsEx(parts, __PARAMS);
+}
+
+function getChannelStatsForUsername(parts, username, max) {
+  const __PARAMS = { forUsername: username, maxResults: max };
+
+  return getChannelStatsEx(parts, __PARAMS);
+}
+
+function getChannelStatsEx(parts, params) {  Logger.log({ id : params.id } ); Logger.log({ maxResults : params.maxResults } );
   const __SELECT = parts;
+  const __PARAMS = params;
   const __EXTRACT = __SELECT;
-  const __LIST = YouTube.Channels.list(__SELECT, { id: channelIDs, maxResults: max });
+  const __LIST = YouTube.Channels.list(__SELECT, __PARAMS);
   const __CHANNELSTATS = (__LIST.items ? __LIST.items.map(item => mapChannelResult(item, __EXTRACT)) : []);
   const __CHANNELMAP = { };
+  let channelIDs = [];
   let channelStats = [];
+  let count = 0;
 
-  __CHANNELSTATS.map(item => (__CHANNELMAP[item[0]] = item));
+  __CHANNELSTATS.map(function(item) {
+                        const __CHANNELID = item[0];
 
-  for (channelID of channelIDs.split(',')) {
+                        channelIDs[count++] = __CHANNELID;
+                        __CHANNELMAP[__CHANNELID] = item;
+  
+                        return item;
+                      });  Logger.log(channelIDs.join(','));
+
+  const __CHANNELIDS = (__PARAMS.id ? __PARAMS.id.split(',') : channelIDs);
+
+  for (channelID of __CHANNELIDS) {
     if (channelID) {
       const __ENTRY = __CHANNELMAP[channelID];
 
@@ -320,6 +391,18 @@ function getPasteSheet() {
 }
 
 function checkVidCol() {
+  return checkCol(__VIDCOL);
+}
+
+function checkChannelCol() {
+  return checkCol(__CHANNELCOL);
+}
+
+function checkHandleCol() {
+  return checkCol(__HANDLECOL);
+}
+
+function checkCol(col) {
   const __ACTIVESHEET = getActiveSheet();
   const __SHEETNAME = __ACTIVESHEET.getSheetName();
   const __CELL = __ACTIVESHEET.getActiveCell();  // or getCurrentCell()?
@@ -327,7 +410,7 @@ function checkVidCol() {
   let ret = false;  Logger.log(__SHEETNAME); Logger.log(__CELL.getA1Notation());
 
   // TODO: From Editor (not triggered), getSheetName() delivers 'Paste' and getColumn() the 'A1' cell! Always! Why?
-  if (__COL === __VIDCOL) {
+  if (__COL === col) {
     ret = (__SHEETNAME === __PASTESHEETNAME);
   }
 
