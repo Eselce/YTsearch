@@ -5,9 +5,9 @@ const __COL = 1;
 const __PASTESHEETNAME = 'Paste';
 const __VIDCOL = __COL;
 const __CHANNELCOL = 8;
-const __STATSCOL = __CHANNELCOL + 9;  // 'Q' See makeResult() and adapt to correct value!
-const __CHANNELSCOL = __STATSCOL + 24;  // 'AO' See makeResult() and adapt to correct value!
-const __HANDLECOL = __CHANNELSCOL + 2;  // 'AQ' See makeChannelResult() and adapt to correct value!
+const __STATSCOL = __CHANNELCOL + 12;  // 'T' See makeResult() and adapt to correct value!
+const __CHANNELSCOL = __STATSCOL + 30;  // 'AX' See makeResult() and adapt to correct value!
+const __HANDLECOL = __CHANNELSCOL + 2;  // 'AZ' See makeChannelResult() and adapt to correct value!
 const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
 const __SHOWITEM = !false;  // Do we need the raw package?
 const __SHORTDESC = true;  // Cut description fields in order to not break the layout?
@@ -264,10 +264,10 @@ function mapResult(item, parts) {
                                                 isoTime2de(__SN.publishedAt),
                                                 __SN.channelId, __SN.channelTitle,
                                                 __SN.liveBroadcastContent,  // 'upcoming', 'live', 'none'
-                                                __SN.categoryId, __SN.defaultAudioLanguage,
+                                                __SN.categoryId, __SN.defaultAudioLanguage,  // These two are missing in 'Search'!
                                                 isoTime2unix(__SN.publishedAt), isoTime2rel(__SN.publishedAt),
-                                                //isoTime2de(__SN.publishTime), isoTime2unix(__SN.publishTime),
-                                                //isoTime2rel(__SN.publishTime),  // See __SN.publishedAt!
+                                                isoTime2de(__SN.publishTime), isoTime2unix(__SN.publishTime),
+                                                isoTime2rel(__SN.publishTime),  // See __SN.publishedAt!
                                                 (__SN.tags ? __SN.tags.join(", ") : '')
                                               ]);
                           break;
@@ -286,6 +286,12 @@ function mapResult(item, parts) {
                           data = data.concat([ (__LS && isoTime2de(__LS.scheduledStartTime)),
                                                 (__LS && isoTime2unix(__LS.scheduledStartTime)),
                                                 (__LS && isoTime2rel(__LS.scheduledStartTime)),
+                                                (__LS && isoTime2de(__LS.actualStartTime)),
+                                                (__LS && isoTime2unix(__LS.actualStartTime)),
+                                                (__LS && isoTime2rel(__LS.actualStartTime)),
+                                                (__LS && isoTime2de(__LS.actualEndTime)),
+                                                (__LS && isoTime2unix(__LS.actualEndTime)),
+                                                (__LS && isoTime2rel(__LS.actualEndTime)),
                                                 (__LS && __LS.activeLiveChatId) ]);
 
                           // Paste string for Discord...
@@ -299,7 +305,7 @@ function mapResult(item, parts) {
                           const __ENDTIME = (__ISDONE && (__LS && __LS.actualEndTime));
                           const __TIME = (__STARTTIME || __PUBLISHEDTIME);  // If premiere, take scheduled, else published!
                           const __MINS = ((isoTime2unix(__SCHEDULEDTIME) - isoTime2unix()) / 60);  // __ISWAIT only!
-                          const __DISPMINS = (mins => ((mins < 2) ? "NOW " : "in " + ((mins < 66) ? mins + " minutes "
+                          const __DISPMINS = (mins => ((mins < 2) ? "NOW " : "in " + ((mins < 66) ? mins.toFixed(0) + " minutes "
                                                                                   : (mins / 60).toFixed(1) + " hours ")));
                           const __PREMIEREWHEN = (__ISWAIT ? __DISPMINS(__MINS) :  '');
                           const __PREMIERE = (__ISOVER ? '' : "Premiere ") + (__ISLIVE ? "NOW " : __PREMIEREWHEN);
