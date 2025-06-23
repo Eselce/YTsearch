@@ -1,29 +1,104 @@
-﻿
+
 // Parameters for the sheet and the API...
-const __ROW = 2;
-const __COL = 1;
-const __PASTESHEETNAME = 'Paste';
-const __INFOSCOL = __COL;
-const __VIDCOL = __INFOSCOL;  // 'A' See makeResult() and adapt to correct value!
-const __CHANNELCOL = __INFOSCOL + 8;  // 'I' See makeResult() and adapt to correct value!
-const __STATSCOL = __INFOSCOL + 17;  // 'R' See makeResult() and adapt to correct value!
-const __CHANNELSCOL = __STATSCOL + 34;  // 'AZ' See makeResult() and adapt to correct value!
-const __HANDLECOL = __CHANNELSCOL + 3;  // 'BC' See makeChannelResult() and adapt to correct value!
-const __LASTCOL = __CHANNELSCOL + 15;  // 'BN' See makeChannelResult() and adapt to correct value!
-const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
-const __SHOWITEM = false;  // Do we need the raw JSON package?
-const __SHORTDESC = false;  // Cut description fields in order to not break the layout?
-const __DESCLEN = (__SHORTDESC ? 50 : -1);  // Max length of description (only "snippet" for videos and channels)
-const __SHOWDESC = true;  // Do we need the description at all?
-const __SHOWPASTE = true;  // Show the combined summary to paste in Discord!
+const __CONFIG = {
+      'search': {
+                  'query': "lovebites",   // Put search query here!
+                  'max': 50,              // Number of rows to be filled (0..50, default: 5), starting at row 2
+                  'order': 'date',        // default: 'relevance'
+                  'type': 'video'         // default: 'video,channel,playlist'                  
+                },
+      'request': {
+                  'info': 'id, snippet',  // default data, used in 'stat' and 'channel' as well!
+                  'stat': 'statistics, contentDetails, topicDetails, status, liveStreamingDetails',
+                  'channel': 'statistics' // 'statistics, brandingSettings, localizations'
+                },
+      'std': {
+                'channel': {
+                            'prefix': 'UC'
+                          }
+              },
+      'diplay': {
+                  'table': 'Paste',
+                  'row': 2,
+                  'col': 1
+                },
+      'columns': {
+                  'len': {
+                          'align': 0,
+                          'info': 17,     // 'R' See makeResult() and adapt to correct value!
+                          'stat': 34,     // 'AZ' See makeResult() and adapt to correct value!
+                          'channel': 16   // 'BO' See makeChannelResult() and adapt to correct value!
+                        },
+                  'col': {
+                          'vid': 0,       // 'A' See makeResult() and adapt to correct value!
+                          'channel': 8,   // 'I' See makeResult() and adapt to correct value!
+                          'handle': 3,    // 'BC' See makeChannelResult() and adapt to correct value!
+                          'last': 15      // 'BN' See makeChannelResult() and adapt to correct value!
+                        }
+                },
+      'data': {
+                'show': {
+                          'item': false,  // Do we need the raw JSON package?
+                          'paste': true,  // Show the combined summary to paste in Discord!
+                          'desc': true    // Do we need the description at all?
+                        },
+                'desc': {
+                          'short': false, // Cut description fields in order to not break the layout?
+                          'maxlen': 50    // Max length of description (only "snippet" for videos and channels)
+                        }
+              },
+      'datetime': {
+                    'string': {
+                              'locale': 'de-DE',
+                              'tz': 'CET'
+                            },
+                    'duration': {
+                                  'timeformat': true,
+                                  'format': 'HH:mm:ss',
+                                  'tz': 'UTC'
+                                }
+                  },
+      'default': {
+                'vid': 'jNQXAC9IVRw',     // ZOO video
+                'dummytime': '2025-01-23T16:17:20Z'
+              }
+    };
+
+// Internal parameters for the sheet and the API (do not edit!)...
+const __ROW = __CONFIG.diplay.row;
+const __COL = __CONFIG.diplay.col;
+const __PASTESHEETNAME = __CONFIG.diplay.table;
+const __INFOSCOL = __COL + __CONFIG.columns.len.align;
+const __VIDCOL = __INFOSCOL + __CONFIG.columns.col.vid;
+const __CHANNELCOL = __INFOSCOL + __CONFIG.columns.col.channel;
+const __STATSCOL = __INFOSCOL + __CONFIG.columns.len.info;
+const __CHANNELSCOL = __STATSCOL + __CONFIG.columns.len.stat;
+const __HANDLECOL = __CHANNELSCOL + __CONFIG.columns.col.handle;
+const __LASTCOL = __CHANNELSCOL + __CONFIG.columns.col.last;
+const __SHOWITEM = __CONFIG.data.show.item;
+const __SHORTDESC = ! __CONFIG.data.desc.short;
+const __DESCLEN = (__SHORTDESC ? __CONFIG.data.desc.maxlen : -1);
+const __SHOWDESC = __CONFIG.data.show.desc;
+const __SHOWPASTE = __CONFIG.data.show.paste;
+
+// YT data...
+const __CHPREFIX = __CONFIG.std.channel.prefix;
+
+// Date and time...
+const __LOCALE = __CONFIG.datetime.string.locale;
+const __TZ = __CONFIG.datetime.string.tz;
+const __TIMEFORMAT = __CONFIG.datetime.duration.timeformat;
+const __DURFORMAT = __CONFIG.datetime.duration.format;
+const __DURTZ = __CONFIG.datetime.duration.tz;
 
 // Parameters for YTsearch...
-const __QUERY = "lovebites";  // Put search query here!
-const __PART = "id, snippet";
-const __STATPART = "statistics, contentDetails, topicDetails, status, liveStreamingDetails";
-const __CHANPART = "statistics";  // 'statistics, brandingSettings, localizations'
-const __ORDER = 'date';  // default: 'relevance'
-const __TYPE = 'video';  // default: 'video,channel,playlist'
+const __QUERY = __CONFIG.search.query;
+const __MAX = __CONFIG.search.max;
+const __PART = __CONFIG.request.info;
+const __STATPART = __CONFIG.request.stat;
+const __CHANPART = __CONFIG.request.channel;
+const __ORDER = __CONFIG.search.order;
+const __TYPE = __CONFIG.search.type;
 
 // Parameter for YTdetails...
 const __STATSPART = __PART + ", " + __STATPART;
@@ -89,7 +164,7 @@ function runYTdetails() {
 function runYTchannelDetails() {
   const __ACTIVESHEET = getPasteSheet();
   const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
-  const __CHANNELIDS = __CHANNELIDCOL.map(entry => safeChannelID(entry, 'UC')).join(',');  // Empty entries!
+  const __CHANNELIDS = __CHANNELIDCOL.map(entry => safeChannelID(entry, __CHPREFIX)).join(',');  // Empty entries!
   const __INFO = [];
   const __STATS = [];
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
@@ -458,7 +533,7 @@ function mapChannelResult(item, parts) {
   return data;
 }
 
-function safeID(video, channel, playlist, dflt = 'jNQXAC9IVRw') {  // ZOO Video
+function safeID(video, channel, playlist, dflt = __CONFIG.default.vid) {
   if (video) return video;
   if (channel) return channel;
   if (playlist) return playlist;
@@ -485,7 +560,7 @@ function safeVID(url, dflt) {  // strips url to pure video-ID...
   return dflt;
 }
 
-function safeChannelID(channelID, prefix = 'UC', dflt = null) {  // strips channelID to pure channel-ID...
+function safeChannelID(channelID, prefix = __CHPREFIX, dflt = null) {  // strips channelID to pure channel-ID...
   const __ID = String(channelID).trim();
   let id = __ID;
 
@@ -590,7 +665,7 @@ function category(categoryID) {
   return (__CATNAME || '');
 }
 
-function PT2time(duration, timeFormat = true) {
+function PT2time(duration, timeFormat = __TIMEFORMAT) {
   const __SECONDS = { 'S': 1, 'M': 60, 'H': 3600, 'D': 86400 };
   let secs = -1;
 
@@ -614,7 +689,7 @@ function PT2time(duration, timeFormat = true) {
 
   if (timeFormat) {
     const __DATE = new Date(secs * 1000);
-    const __TIME = Utilities.formatDate(__DATE, 'UTC', 'HH:mm:ss');
+    const __TIME = Utilities.formatDate(__DATE, __DURTZ, __DURFORMAT);
   
     s = __TIME;
   } else {
@@ -643,7 +718,7 @@ function isoTime2rel(isoTime) {
 
 function isoTime2de(isoTime) {
   const __DATE = (isoTime ? new Date(isoTime) : new Date());
-  const __LOCAL = __DATE.toLocaleString('de-DE', { timeZone: 'CET' });
+  const __LOCAL = __DATE.toLocaleString(__LOCALE, { timeZone: __TZ });
 
   return __LOCAL;  // .replace(',', '');
 }
@@ -676,7 +751,7 @@ function testMap() {
 
 // Test: isoTime2unix(), isoTime2de(), isoTime2rel()...
 function testIsoTime() {
-  const __TIME = '2025-01-23T16:17:20Z';
+  const __TIME = __CONFIG.default.dummytime;
   const __NOW = new Date();
   const __TIMEUNIX = isoTime2unix(__TIME);
   const __NOWUNIX = isoTime2unix(__NOW);
@@ -732,7 +807,7 @@ function testSafeChannelID() {
                   'sQ4R6ihKh2_-2Fc_vWzA7Q', 'uSOre3pUobWnlFxkSkHqsQ+', 'uSOre3pUobWnlFxkSkHqs' ];
 
   for (let channelID of __IDs)  {
-    const __CHANNELID = safeChannelID(channelID, 'UC', "Successfully found error in channelID");
+    const __CHANNELID = safeChannelID(channelID, __CHPREFIX, "Successfully found error in channelID");
 
     Logger.log(channelID + " -> " + __CHANNELID);
   }
