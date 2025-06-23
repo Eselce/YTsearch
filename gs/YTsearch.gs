@@ -17,7 +17,7 @@ const __CONFIG = {
                             'prefix': 'UC'
                           }
               },
-      'diplay': {
+      'display': {
                   'table': 'Paste',
                   'row': 2,
                   'col': 1
@@ -30,9 +30,9 @@ const __CONFIG = {
                           'channel': 16   // 'BO' See makeChannelResult() and adapt to correct value!
                         },
                   'col': {
-                          'vid': 0,       // 'A' See makeResult() and adapt to correct value!
-                          'channel': 8,   // 'I' See makeResult() and adapt to correct value!
-                          'handle': 3,    // 'BC' See makeChannelResult() and adapt to correct value!
+                          'vid': 1,       // 'A' See makeResult() and adapt to correct value!
+                          'channel': 9,   // 'I' See makeResult() and adapt to correct value!
+                          'handle': 4,    // 'BC' See makeChannelResult() and adapt to correct value!
                           'last': 15      // 'BN' See makeChannelResult() and adapt to correct value!
                         }
                 },
@@ -65,16 +65,16 @@ const __CONFIG = {
     };
 
 // Internal parameters for the sheet and the API (do not edit!)...
-const __ROW = __CONFIG.diplay.row;
-const __COL = __CONFIG.diplay.col;
-const __PASTESHEETNAME = __CONFIG.diplay.table;
+const __ROW = __CONFIG.display.row;
+const __COL = __CONFIG.display.col;
+const __PASTESHEETNAME = __CONFIG.display.table;
 const __INFOSCOL = __COL + __CONFIG.columns.len.align;
-const __VIDCOL = __INFOSCOL + __CONFIG.columns.col.vid;
-const __CHANNELCOL = __INFOSCOL + __CONFIG.columns.col.channel;
+const __VIDCOL = addCols(__INFOSCOL, __CONFIG.columns.col.vid);
+const __CHANNELCOL = addCols(__INFOSCOL, __CONFIG.columns.col.channel);
 const __STATSCOL = __INFOSCOL + __CONFIG.columns.len.info;
 const __CHANNELSCOL = __STATSCOL + __CONFIG.columns.len.stat;
-const __HANDLECOL = __CHANNELSCOL + __CONFIG.columns.col.handle;
-const __LASTCOL = __CHANNELSCOL + __CONFIG.columns.col.last;
+const __HANDLECOL = addCols(__CHANNELSCOL, __CONFIG.columns.col.handle);
+const __LASTCOL = addCols(__CHANNELSCOL, __CONFIG.columns.col.last);
 const __SHOWITEM = __CONFIG.data.show.item;
 const __SHORTDESC = ! __CONFIG.data.desc.short;
 const __DESCLEN = (__SHORTDESC ? __CONFIG.data.desc.maxlen : -1);
@@ -236,7 +236,18 @@ function triggerYThandleDetails() {
   return (checkHandleCol() && runYThandleDetails());
 }
 
-function setVIDs(row, col, ids) {  Logger.log("Setting clean setVIDs()...");
+function setVIDs(row, col, ids) {  Logger.log("Setting clean setVIDs()...")
+  const __TEMPLATE = {
+                        'table': __PASTESHEETNAME,
+                        'row': row,
+                        'col': col
+                     };
+  const __DATA = ids;
+
+  return populateData(__TEMPLATE, __DATA);
+}
+
+function setVIDsOld(row, col, ids) {  Logger.log("Setting clean setVIDs()...");
   const __ACTIVESHEET = getPasteSheet();
   const __IDLEN = ((ids && ids.length) ? ids.length : 0);
   const __IDWIDTH = ((ids && ids[0] && ids[0].length) ? ids[0].length : 0);
@@ -246,6 +257,24 @@ function setVIDs(row, col, ids) {  Logger.log("Setting clean setVIDs()...");
 }
 
 function setYTsearchData(row, col, info, stats) {  Logger.log("Setting setYTsearchData() search data...");
+  const __TEMPLATE = {
+                        'table': __PASTESHEETNAME,
+                        'row': row,
+                        'col': col,
+                        'items': {
+                                    'info': { 'col': col },
+                                    'stat': { 'col': (__INFOCOL + __INFOWIDTH) }
+                                  }
+                     };
+  const __DATA = {
+                    'info': info,
+                    'stat': stats
+                  };
+
+  return populateData(__TEMPLATE, __DATA);
+}
+
+function setYTsearchDataOld(row, col, info, stats) {  Logger.log("Setting setYTsearchData() search data...");
   const __ACTIVESHEET = getPasteSheet();
   const __INFOLEN = ((info && info.length) ? info.length : 0);
   const __STATLEN = ((stats && stats.length) ? stats.length : 0);
@@ -261,7 +290,26 @@ function setYTsearchData(row, col, info, stats) {  Logger.log("Setting setYTsear
 }
 
 function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {  Logger.log("Setting setYTdetailsData() details...");
-//  Logger.log(info); Logger.log(stats); Logger.log(channelStats);
+  const __TEMPLATE = {
+                        'table': __PASTESHEETNAME,
+                        'row': row,
+                        'col': col,
+                        'items': {
+                                    'info': { 'col': col },
+                                    'stat': { 'col': statsCol },
+                                    'channel': true
+                                  }
+                     };
+  const __DATA = {
+                    'info': info,
+                    'stat': stats,
+                    'channel': channelStats
+                  };
+
+  return populateData(__TEMPLATE, __DATA);
+}
+
+function setYTdetailsDataOld(row, col, statsCol, info, stats, channelStats) {  Logger.log("Setting setYTdetailsData() details...");
   const __ACTIVESHEET = getPasteSheet();
   const __INFOLEN = ((info && info.length) ? info.length : 0);
   const __STATLEN = ((stats && stats.length) ? stats.length : 0);
@@ -281,6 +329,29 @@ function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {  Logg
 }
 
 function clearDetailsData(row, col) {  Logger.log("Clearing clearDetailsData() data..."); Logger.log('(' + row + ", " + col + ')');
+  const __INFOWIDTH = __STATSCOL - __COL;
+  const __STATWIDTH = __CHANNELSCOL - __STATSCOL;
+  const __CHANWIDTH = __LASTCOL - __CHANNELSCOL + 1;
+  const __INFOCOL = col;
+  const __STATCOL = __INFOCOL + __INFOWIDTH;
+  const __CHANCOL = __STATCOL + __STATWIDTH;
+  const __TEMPLATE = {
+                        'table': __PASTESHEETNAME,
+                        'row': row,
+                        'col': col,
+                        'clearCol': true,
+                        'max': __MAX,
+                        'items': {
+                                    'info': { 'col': __INFOCOL, 'width': __INFOWIDTH },
+                                    'stat': { 'col': __STATCOL, 'width': __STATWIDTH },
+                                    'channel': { 'col': __CHANCOL, 'width': __CHANWIDTH }
+                                  }
+                     };
+
+  return populateData(__TEMPLATE);
+}
+
+function clearDetailsDataOld(row, col) {  Logger.log("Clearing clearDetailsData() data..."); Logger.log('(' + row + ", " + col + ')');
   const __ACTIVESHEET = getPasteSheet();
   const __INFOLEN = __MAX;
   const __STATLEN = __MAX;
@@ -295,6 +366,88 @@ function clearDetailsData(row, col) {  Logger.log("Clearing clearDetailsData() d
   if (__INFOLEN) { __ACTIVESHEET.getRange(row, __INFOCOL, __INFOLEN, __INFOWIDTH).clearContent(); }
   if (__STATLEN) { __ACTIVESHEET.getRange(row, __STATCOL, __STATLEN, __STATWIDTH).clearContent(); }
   if (__CHANLEN) { __ACTIVESHEET.getRange(row, __CHANCOL, __CHANLEN, __CHANWIDTH).clearContent(); }
+
+  return true;
+}
+
+function populate(data) {
+  return populateData(null, data);
+}
+
+function populateData(template, data) {
+  const __CONF = (template || { });
+  const __DATA = data;
+
+  return populateDataEx(__CONF.table, __CONF.row, __CONF.col, __CONF.items, __DATA, __CONF);
+}
+
+function populateDataEx(table, row, col, items, data, config) {
+  const __TABLE = (table || __PASTESHEETNAME);
+  const __STARTROW = (row || __ROW);
+  const __STARTCOL = (col || __COL);
+  const __DATA = (items ? (data || []) : { 'data': data });
+  const __ITEMS = (items || { });
+  const __CONF = (config || { });  // Just for further global parameters!
+  const __ACTIVESHEET = setActiveSheet(__TABLE);
+  let nextRow = 0;  // relative to __STARTROW!
+  let nextCol = 0;  // relative to __STARTCOL!
+  let lastRow = nextRow;
+  let lastCol = nextCol;
+
+  if (! Object.keys(__ITEMS).length) {
+    // Simple column blocks...
+    // Defining the data blocks...
+    for (key of Object.keys(__DATA)) {
+      __ITEMS[key] = true;
+    }
+  }
+
+  Logger.log("Populating " + __TABLE + " (" + __STARTROW + ", " + __STARTCOL + ")...");
+  Logger.log({ 'items': __ITEMS, 'data':  (__DATA ? Object.keys(__DATA) : __DATA) });
+
+  for (const [key, format] of Object.entries(__ITEMS)) {
+    const __ITEM = __DATA[key];
+
+    if (__ITEM && ! Array.isArray(__ITEM)) {
+      Logger.log("Error in populateDataEx(): __DATA[" + key + "] with keys (" + Object.keys(__ITEM) + ") is invalid!");
+
+      return false;
+    } else if (format) {
+      const __ITEMROW = addCols(__STARTROW, (format.row || ((format.col === lastCol) ? nextRow : 1)));  // Start on top row if not same col specified!
+      const __ITEMCOL = addCols(__STARTCOL, (format.col || nextCol));
+      const __ITEMLEN = (((__ITEM && __ITEM.length) ? __ITEM.length : format.len) || 1);
+      const __ITEMWIDTH = (((__ITEM && __ITEM[0] && __ITEM[0].length) ? __ITEM[0].length : format.width) || 1);
+      const __ITEMMAX = (format.max || __CONF.max || __MAX);
+      const __ITEMRANGE = __ACTIVESHEET.getRange(__ITEMROW, __ITEMCOL, __ITEMLEN, __ITEMWIDTH);
+      const __CLEARRANGE = __ACTIVESHEET.getRange(__STARTROW, __ITEMCOL, __ITEMMAX, __ITEMWIDTH);
+      const __CLEAR = (__CONF.clear || format.clear);
+      const __CLEARCOL = (__CONF.clearCol || format.clearCol);
+      const __SETVALUES = (__ITEM && __ITEMLEN);
+
+      lastRow = (__CLEARCOL ? 1 : (__ITEMROW - __STARTROW + 1));
+      lastCol = __ITEMCOL - __STARTCOL + 1;
+      nextRow = (__CLEARCOL ? __ITEMMAX + 1 : (lastRow + __ITEMLEN));
+      nextCol = lastCol + __ITEMWIDTH;
+
+      Logger.log('Key = ' + key // + " -> " + __ITEM
+                + " @ (" + __ITEMROW + ", " + __ITEMCOL
+                + "), size = (" + __ITEMLEN + ", " + __ITEMWIDTH
+                + "), relative (" + lastRow + ", " + lastCol
+                + ") to (" + (nextRow - 1) + ", " + (nextCol - 1) + ")");
+
+      if (__CLEARCOL) {
+        __CLEARRANGE.clearContent();
+      } else if (__CLEAR) {
+        __ITEMRANGE.clearContent();
+      }
+
+      if (__SETVALUES) {
+        __ITEMRANGE.setValues(__ITEM);
+      }
+    }
+  }
+
+  Logger.log("Successfully populated " + __TABLE + " (" + __STARTROW + ", " + __STARTCOL + ")");
 
   return true;
 }
@@ -577,6 +730,10 @@ function safeChannelID(channelID, prefix = __CHPREFIX, dflt = null) {  // strips
   return dflt;
 }
 
+function getPasteSheet() {
+  return setActiveSheet(__PASTESHEETNAME);
+}
+
 function getActiveSheet() {
   const __SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
   const __ACTIVESHEET = __SPREADSHEET.getActiveSheet();
@@ -584,7 +741,15 @@ function getActiveSheet() {
   return __ACTIVESHEET;
 }
 
-function getPasteSheet() {
+function setActiveSheet(table) {  Logger.log("Activating table '" + table + "'");
+  const __SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
+  const __SHEET = __SPREADSHEET.getSheetByName(table);
+  const __ACTIVEPASTESHEET = (__SHEET ? __SHEET.activate() : null);
+
+  return __ACTIVEPASTESHEET;
+}
+
+function getPasteSheetOld() {
   const __SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
   const __ACTIVESHEET = __SPREADSHEET.getActiveSheet();
   const __CELL = __SPREADSHEET.getActiveCell();
@@ -723,6 +888,11 @@ function isoTime2de(isoTime) {
   return __LOCAL;  // .replace(',', '');
 }
 
+function addCols(start, offset) {
+  // Columns are 1-based, so by adding an offset to a base, we lose 1...
+  return (start + offset - 1);
+}
+
 // Test: mapResult()...
 function testMap() {
   const __ITEM = { id: { videoId: 'cEAmmT-T0Fg', kind: 'youtube#video' },
@@ -811,4 +981,22 @@ function testSafeChannelID() {
 
     Logger.log(channelID + " -> " + __CHANNELID);
   }
+}
+
+// Test: populateData()...
+function testPopulateData() {
+  const __DATA = [ ['This', 'is'], [ 'a', 'test.' ] ];
+  const __DATA2 = [ [ 'More' ], [ 'data!' ] ];
+  const __DATA3 = [ [ 'This' ], [ 'is' ], [ 'just' ], [ 'ordinary' ], [ 'data' ] ];
+
+  populateData({ items: { 'clear': { 'len': 12, 'width': 9, 'clear': true }}});
+
+  populate(__DATA3);
+
+  populateData(null, __DATA);
+
+  populateDataEx(null, 3, 5, { }, { 'a': __DATA, 'b': __DATA2 });
+
+  populateData({ 'row': 5, 'col': 7, items: { '0': { 'col': 1 }, '2': { 'col': 1 }, '3': { 'col': 1 }}},
+                                            { '0': __DATA, '2': __DATA2, '3': __DATA3 });
 }
