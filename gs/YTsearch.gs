@@ -93,16 +93,25 @@ function runYTdetails() {
 // and get STATS and CHANNELS...
 function runYThandleDetails() {
   const __ACTIVESHEET = getPasteSheet();
-  const __CELL = __ACTIVESHEET.getActiveCell();  // or getCurrentCell()?
-  const __ROW = __CELL.getRow();  Logger.log(__ROW); Logger.log(__CELL.getA1Notation());
-  const __MAX = 1;
-  const __CHANNELHANDLECOL = __ACTIVESHEET.getRange(__ROW, __HANDLECOL, __MAX, 1).getValues();
-  const __CHANNELHANDLE = __CHANNELHANDLECOL.join(',');  // Empty entries!
+  const __SINGLEROW = 1;
+  const __SINGLECOL = 1;
   const __INFO = [];
   const __STATS = [];
-  const __CHANNELSTATS = getChannelStatsForHandle(__CHANNELPART, __CHANNELHANDLE, __MAX);
+  let ret = false;
+  let handle;
 
-  return setYTdetailsData(__ROW, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
+  for (let row = __ROW; row < __ROW + __MAX; row++) {
+    const __CHANNELHANDLECOL = __ACTIVESHEET.getRange(row, __HANDLECOL, __SINGLEROW, __SINGLECOL).getValues();
+    const __CHANNELHANDLE = __CHANNELHANDLECOL.join(',');  // Empty entries!
+
+    if (__CHANNELHANDLE && __CHANNELHANDLE.length) {  Logger.log({ Row: row.toFixed(0), Handle: __CHANNELHANDLE });
+      const __CHANNELSTATS = getChannelStatsForHandle(__CHANNELPART, __CHANNELHANDLE, __SINGLEROW);
+
+      ret |= setYTdetailsData(row, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
+    }
+  }
+
+  return ret;
 }
 
 // Main: Clear all areas for INFO, STATS, and CHANNELS...
