@@ -2,6 +2,8 @@
 // Parameters for the sheet and the API...
 const __ROW = 2;
 const __COL = 1;
+const __PASTESHEETNAME = 'Paste';
+const __VIDCOL = __COL;
 const __CHANNELCOL = 8;
 const __STATSCOL = __CHANNELCOL + 9;  // 'Q' See makeResult() and adapt to correct value!
 const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
@@ -36,8 +38,8 @@ function runYTall() {
 
 // Main: Get IDs from first column (row 2..51) and get STATS and CHANNELS...
 function runYTdetailsAll() {
-  const __ACTIVESHEET = getActiveSheet();
-  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __COL, __MAX, 1).getValues();
+  const __ACTIVESHEET = getPasteSheet();
+  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, 1).getValues();
   const __IDS = __IDCOL.join(',');
   const [ __INFO, __STATS ] = getInfoStats(__IDS);
   const __CHANNELIDS = __INFO.map(info => info[__CHANNELCOL - 1]).join(',');
@@ -59,8 +61,8 @@ function runYTsearch() {
 // Main: Get IDs from first column and ChannelIDs from eigths column (row 2..51)
 // and get STATS and CHANNELS...
 function runYTdetails() {
-  const __ACTIVESHEET = getActiveSheet();
-  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __COL, __MAX, 1).getValues();
+  const __ACTIVESHEET = getPasteSheet();
+  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, 1).getValues();
   const __IDS = __IDCOL.join(',');
   const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
   const __CHANNELIDS = __CHANNELIDCOL.join(',');  // Empty entries!
@@ -70,8 +72,18 @@ function runYTdetails() {
   return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
+// Main: Run runYTAll(), but only if you are active on the 'Paste' sheet!
+function triggerYTall() {
+  return (checkVidCol() && runYTall());
+}
+
+// Main: Run runYTdetailsAll(), but only if you are changing a videoID!
+function triggerYTdetailsAll() {
+  return (checkVidCol() && runYTdetailsAll());
+}
+
 function setYTsearchData(row, col, info, stats) {
-  const __ACTIVESHEET = getActiveSheet();
+  const __ACTIVESHEET = getPasteSheet();
   const __INFOLEN = ((info && info.length) ? info.length : 0);
   const __STATLEN = ((stats && stats.length) ? stats.length : 0);
   const __INFOWIDTH = ((info && info[0] && info[0].length) ? info[0].length : 0);
@@ -87,7 +99,7 @@ function setYTsearchData(row, col, info, stats) {
 
 function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {
 //  Logger.log(info); Logger.log(stats); Logger.log(channelStats);
-  const __ACTIVESHEET = getActiveSheet();
+  const __ACTIVESHEET = getPasteSheet();
   const __INFOLEN = ((info && info.length) ? info.length : 0);
   const __STATLEN = ((stats && stats.length) ? stats.length : 0);
   const __CHANLEN = ((channelStats && channelStats.length) ? channelStats.length : 0);
@@ -293,10 +305,33 @@ function safeID(video, channel, playlist) {
 }
 
 function getActiveSheet() {
-  const __SHEET = SpreadsheetApp.getActiveSpreadsheet();
-  const __ACTIVESHEET = __SHEET.getActiveSheet();
+  const __SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
+  const __ACTIVESHEET = __SPREADSHEET.getActiveSheet();
 
   return __ACTIVESHEET;
+}
+
+function getPasteSheet() {
+  const __SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
+  const __PASTESHEET = __SPREADSHEET.getSheetByName(__PASTESHEETNAME);
+  const __ACTIVESHEET = __PASTESHEET.activate();
+
+  return __ACTIVESHEET;
+}
+
+function checkVidCol() {
+  const __ACTIVESHEET = getActiveSheet();
+  const __SHEETNAME = __ACTIVESHEET.getSheetName();
+  const __CELL = __ACTIVESHEET.getActiveCell();  // or getCurrentCell()?
+  const __COL = __CELL.getColumn();
+  let ret = false;  Logger.log(__SHEETNAME); Logger.log(__CELL.getA1Notation());
+
+  // TODO: From Editor (not triggered), getSheetName() delivers 'Paste' and getColumn() the 'A1' cell! Always! Why?
+  if (__COL === __VIDCOL) {
+    ret = (__SHEETNAME === __PASTESHEETNAME);
+  }
+
+  return ret;
 }
 
 function PT2time(duration, timeFormat = true) {
