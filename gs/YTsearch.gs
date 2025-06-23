@@ -4,11 +4,15 @@ const __ROW = 2;
 const __COL = 1;
 const __CHANNELCOL = 8;
 const __STATSCOL = __CHANNELCOL + 9;  // 'Q' See makeResult() and adapt to correct value!
-const __MAX = 50;  // 0..50, default: 5
+const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
 const __SHOWITEM = false;  // Do we need the raw package?
+const __SHORTDESC = true;  // Cut description fields in order to not break the layout?
+const __DESCLEN = (__SHORTDESC ? 50 : -1);  // Max length of description (only "snippet" for videos and channels)
+const __SHOWDESC = true;  // Do we need the description at all?
+const __SHOWPASTE = true;
 
 // Parameters for YTsearch...
-const __QUERY = "lovebites";
+const __QUERY = "lovebites";  // Put search query here!
 const __PART = "id, snippet";
 const __STATPART = "statistics, contentDetails, topicDetails, status, liveStreamingDetails";
 const __CHANPART = "statistics";  // 'statistics, brandingSettings, localizations'
@@ -106,7 +110,7 @@ function getSearchInfo(query, max, order, type) {
   const __EXTRACT = __SELECT;
   const __LIST = YouTube.Search.list(__SELECT,
                     { q: query, maxResults: max, order: order, type: type, safeSearch: 'none' });
-  const __RET = __LIST.items.map(item => mapResult(item, __EXTRACT));
+  const __RET = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
 
   return __RET;
 }
@@ -115,7 +119,7 @@ function getStats(IDs) {
   const __SELECT = __STATSPART;
   const __EXTRACT = __STATPART;
   const __LIST = YouTube.Videos.list(__SELECT, { id: IDs });
-  const __STATS = __LIST.items.map(item => mapResult(item, __EXTRACT));
+  const __STATS = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
 
   return __STATS;
 }
@@ -125,8 +129,8 @@ function getInfoStats(IDs) {
   const __EXTRACT = __STATPART;
   const __EXTRACTINFO = __PART;
   const __LIST = YouTube.Videos.list(__SELECT, { id: IDs });
-  const __INFO = __LIST.items.map(item => mapResult(item, __EXTRACTINFO));
-  const __STATS = __LIST.items.map(item => mapResult(item, __EXTRACT));
+  const __INFO = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACTINFO)) : []);
+  const __STATS = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
 
   return [ __INFO, __STATS ];
 }
@@ -135,7 +139,7 @@ function getChannelStats(parts, channelIDs, max) {
   const __SELECT = parts;
   const __EXTRACT = __SELECT;
   const __LIST = YouTube.Channels.list(__SELECT, { id: channelIDs, maxResults: max });
-  const __CHANNELSTATS = __LIST.items.map(item => mapChannelResult(item, __EXTRACT));
+  const __CHANNELSTATS = (__LIST.items ? __LIST.items.map(item => mapChannelResult(item, __EXTRACT)) : []);
   const __CHANNELMAP = { };
   let channelStats = [];
 
@@ -153,9 +157,12 @@ function getChannelStats(parts, channelIDs, max) {
 }
 
 function mapResult(item, parts) {
-  const __PARTS = parts.split(',').map(part => part.trim());
+  const __PARTS = (parts ? parts.split(',').map(part => part.trim()) : []);
   const __ID = (((typeof item.id) === 'string') ? { videoId : item.id, kind: item.kind } : item.id);
   const __SN = item.snippet;
+  const __FULLDESC = (__SN && __SN.description);
+  const __DESC = ((__SHORTDESC && __FULLDESC && (__FULLDESC.length >= __DESCLEN - 1))
+                      ? __FULLDESC.substring(0, __DESCLEN) + "..." : __FULLDESC);
   const __CD = item.contentDetails;
   const __TD = item.topicDetails;
   const __TC = (__TD && __TD.topicCategories);
@@ -168,7 +175,7 @@ function mapResult(item, parts) {
     switch (part) {
       case 'id':          data = data.concat([ __ID.videoId, __ID.channelId, __ID.playlistId, __ID.kind ]);
                           break;
-      case 'snippet':     data = data.concat([ __SN.title, __SN.description,
+      case 'snippet':     data = data.concat([ __SN.title, (__SHOWDESC && __DESC),
                                                 isoTime2de(__SN.publishedAt),
                                                 __SN.channelId, __SN.channelTitle,
                                                 __SN.liveBroadcastContent,  // 'upcoming', 'live', 'none'
@@ -224,7 +231,7 @@ function mapResult(item, parts) {
                                                       + __SN.channelTitle + '\n' + __SN.title;
                           const __DISCORDFULL = __DISCORD + __DISCORDINFO;
 
-                          data = data.concat([ __DISCORD, __DISCORDFULL ]);  // Avoid "...\n..."!
+                          data = data.concat([ __DISCORD, (__SHOWPASTE && __DISCORDFULL) ]);  // Avoid "...\n..."!
                           break;
       default:            break;
     }
@@ -240,10 +247,13 @@ function mapResult(item, parts) {
 }
 
 function mapChannelResult(item, parts) {
-  const __PARTS = parts.split(',').map(part => part.trim());
+  const __PARTS = (parts ? parts.split(',').map(part => part.trim()) : []);
   const __ID = item.id;
   const __KIND = item.kind;
   const __SN = item.snippet;
+  const __FULLDESC = (__SN && __SN.description);
+  const __DESC = (__SHORTDESC && __FULLDESC && (__FULLDESC.length >= __DESCLEN - 1))
+                      ? __FULLDESC.substring(0, __DESCLEN) + "..." : __FULLDESC;
   const __SI = item.statistics;
   const __BS = item.brandingSettings;
   let data = [];
@@ -252,14 +262,14 @@ function mapChannelResult(item, parts) {
     switch (part) {
       case 'id':          data = data.concat([ __ID, __KIND ]);
                           break;
-      case 'snippet':     data = data.concat([ __SN.customUrl, __SN.title, __SN.description,
+      case 'snippet':     data = data.concat([ __SN.customUrl, __SN.title, (__SHOWDESC && __DESC),
                                                 isoTime2de(__SN.publishedAt), isoTime2unix(__SN.publishedAt),
                                                 isoTime2rel(__SN.publishedAt), __SN.country ]);
                           break;
       case 'statistics':  data = data.concat([ __SI.viewCount, __SI.subscriberCount, __SI.videoCount ]);
                           break;
-      case 'brandingSettings': const __CH = ((item.brandingSettings) ? item.brandingSettings.channel : null);
-                          data = data.concat([ __CH.title, __CH.description ]);
+      case 'brandingSettings': const __CH = (__BS ? __BS.channel : null);
+                          data = data.concat([ __CH.title, (__SHOWDESC && __CH.description) ]);
                           break;
       default:            break;
     }
@@ -290,7 +300,7 @@ function getActiveSheet() {
 }
 
 function PT2time(duration, timeFormat = true) {
-  const __SECONDS = { 'S': 1, 'M': 60, 'H': 3600, 'D': 86400 };  // More units needed?
+  const __SECONDS = { 'S': 1, 'M': 60, 'H': 3600, 'D': 86400 };
   let secs = -1;
 
   if (duration && duration.startsWith('P')) {
