@@ -5,40 +5,53 @@ const __CONFIG = {
                   'query': "lovebites",   // Put search query here!
                   'max': 50,              // Number of rows to be filled (0..50, default: 5), starting at row 2
                   'order': 'date',        // default: 'relevance'
-                  'type': 'video'         // default: 'video,channel,playlist'                  
+                  'type': 'video',        // default: 'video,channel,playlist'
+                  'safeSearch': 'none'
                 },
       'request': {
-                  'info': 'id, snippet',  // default data, used in 'stat' and 'channel' as well!
+                  'info': 'id, snippet',                      // default data, used in 'stat' and 'channel' as well!
                   'stat': 'statistics, contentDetails, topicDetails, status, liveStreamingDetails',
-                  'channel': 'statistics' // 'statistics, brandingSettings, localizations'
+                  'channel': 'statistics',                    // 'statistics, brandingSettings, localizations'
+                  'plinfo': 'contentDetails, status',         // Info about a playlist
+                  'pllist': 'contentDetails, status, player', // List of items in a playlist / 'pageInfo, items'
+                  'plitem': 'contentDetails, status'          // Info about an item in a playlist
                 },
       'std': {
+                'video':  {
+                            'prefix': ''                      // 0 + 11 = 11 chars
+                          },
                 'channel': {
-                            'prefix': 'UC'
+                            'prefix': 'UC'                    // 2 + 22 = 24 chars
+                          },
+                'playlist': {
+                            'prefix': 'PL'                    // 2 + 32 = 34 chars
+                          },
+                'playlistItem': {
+                            'prefix': 'UE'                    // 2 + 66 = 68 chars
                           }
               },
       'display': {
                   'table': 'Paste',
                   'row': 2,
-                  'col': 1
+                  'col': 2
                 },
       'columns': {
                   'len': {
                           'align': 0,
-                          'info': 17,     // 'R' See makeResult() and adapt to correct value!
-                          'stat': 34,     // 'AZ' See makeResult() and adapt to correct value!
-                          'channel': 16   // 'BO' See makeChannelResult() and adapt to correct value!
+                          'info': 17,     // 'S' See makeResult() and adapt to correct value!
+                          'stat': 34,     // 'BA' See makeResult() and adapt to correct value!
+                          'channel': 16   // 'BP' See makeChannelResult() and adapt to correct value!
                         },
                   'col': {
-                          'vid': 1,       // 'A' See makeResult() and adapt to correct value!
-                          'channel': 9,   // 'I' See makeResult() and adapt to correct value!
-                          'handle': 4,    // 'BC' See makeChannelResult() and adapt to correct value!
-                          'last': 15      // 'BN' See makeChannelResult() and adapt to correct value!
+                          'vid': 1,       // 'B' See makeResult() and adapt to correct value!
+                          'channel': 9,   // 'J' See makeResult() and adapt to correct value!
+                          'handle': 4,    // 'BD' See makeChannelResult() and adapt to correct value!
+                          'last': 15      // 'BO' See makeChannelResult() and adapt to correct value!
                         }
                 },
       'data': {
                 'show': {
-                          'item': false,  // Do we need the raw JSON package?
+                          'item': !false,  // Do we need the raw JSON package?
                           'paste': true,  // Show the combined summary to paste in Discord!
                           'desc': true    // Do we need the description at all?
                         },
@@ -68,7 +81,11 @@ const __CONFIG = {
 const __ROW = __CONFIG.display.row;
 const __COL = __CONFIG.display.col;
 const __PASTESHEETNAME = __CONFIG.display.table;
-const __INFOSCOL = __COL + __CONFIG.columns.len.align;
+const __TOPROW = 1;
+const __LEFTCOL = 1;
+const __SINGLEROW = 1;
+const __SINGLECOL = 1;
+const __INFOSCOL = 1 + __CONFIG.columns.len.align;  // 1-based
 const __VIDCOL = addCols(__INFOSCOL, __CONFIG.columns.col.vid);
 const __CHANNELCOL = addCols(__INFOSCOL, __CONFIG.columns.col.channel);
 const __STATSCOL = __INFOSCOL + __CONFIG.columns.len.info;
@@ -91,24 +108,41 @@ const __TIMEFORMAT = __CONFIG.datetime.duration.timeformat;
 const __DURFORMAT = __CONFIG.datetime.duration.format;
 const __DURTZ = __CONFIG.datetime.duration.tz;
 
+// Output format for sheet positions...
+const __DEFDELIMS = [ '(', ', ', ')', ' to ' ];   // '(row, col)'
+const __RCDELIMS = [ 'R', 'C', '', '-' ];      // 'RrowCcol'
+
 // Parameters for YTsearch...
 const __QUERY = __CONFIG.search.query;
 const __MAX = __CONFIG.search.max;
 const __PART = __CONFIG.request.info;
 const __STATPART = __CONFIG.request.stat;
 const __CHANPART = __CONFIG.request.channel;
+const __PINFPART = __CONFIG.request.plinfo;
+const __LISTPART = __CONFIG.request.pllist;
+const __ITEMPART = __CONFIG.request.plitem;
 const __ORDER = __CONFIG.search.order;
 const __TYPE = __CONFIG.search.type;
+const __SEARCH = {
+                    'q': syncCell(2, __LEFTCOL, __QUERY),
+                    'order': syncCell(3, __LEFTCOL, __ORDER),
+                    'type': syncCell(4, __LEFTCOL, __TYPE),
+                    'maxResults': __MAX,
+                    'safeSearch': __CONFIG.search.safeSearch
+                  };
 
 // Parameter for YTdetails...
 const __STATSPART = __PART + ", " + __STATPART;
 const __CHANNELPART = __PART + ", " + __CHANPART;
+const __PLINFOPART = __PART + ", " + __PINFPART;
+const __PLLISTPART = __PART + ", " + __LISTPART;
+const __PLITEMPART = __PART + ", " + __ITEMPART;
 
 // Main: Search and get STATS and CHANNELS...
-function runYTall() {  Logger.log("Starting runYTall() search...");
-  const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
-  const __IDS = __INFO.map(info => safeVID(safeID(info[0], info[1], info[2]))).join(',');
-  const __CHANNELIDS = __INFO.map(info => info[__CHANNELCOL - 1]).join(',');
+function runYTall() {  Logger.log("Starting runYTall() search..."); Logger.log(__SEARCH);
+  const __INFO = getSearchInfo(__SEARCH);
+  const __IDS = getList(__INFO, (info => safeVID(safeID(info[0], info[1], info[2]))));
+  const __CHANNELIDS = getList(__INFO, (info => info[__CHANNELCOL - 1]));
   const __STATS = getStats(__IDS);
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
 
@@ -117,21 +151,21 @@ function runYTall() {  Logger.log("Starting runYTall() search...");
 
 // Main: Get IDs from first column (row 2..51) and get STATS and CHANNELS...
 function runYTdetailsAll() {
-  const __ACTIVESHEET = getPasteSheet();
-  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, 1).getValues();
-  const __IDS = __IDCOL.map(entry => safeVID(entry)).join(',');
+  //const __ACTIVESHEET = getPasteSheet();
+  //const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, __SINGLECOL).getValues();
+  //const __IDS = __IDCOL.map(entry => safeVID(entry)).join(',');
+  const __IDS = getColumn(__ROW, __COL, __VIDCOL, __SINGLECOL, (entry => safeVID(entry)));
   const [ __INFO, __STATS ] = getInfoStats(__IDS);
-  const __CHANNELIDS = __INFO.map(info => info[__CHANNELCOL - 1]).join(',');
+  const __CHANNELIDS = getList(__INFO, (info => info[__CHANNELCOL - 1]));
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
 
   return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
-// Main: Get IDs from first column and ChannelIDs from eigths column (row 2..51)
-// and get CHANNELS...
+// Main: Search and get rudimantal INFO and STATS of those vides in 50 rows (row 2..51)...
 function runYTsearch() {
-  const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
-  const __IDS = __INFO.map(info => safeVID(safeID(info[0], info[1], info[2]))).join(',');
+  const __INFO = getSearchInfo(__SEARCH);
+  const __IDS = getList(__INFO, (info => safeVID(safeID(info[0], info[1], info[2]))));
   const __STATS = getStats(__IDS);
 
   return setYTsearchData(__ROW, __COL, __INFO, __STATS);
@@ -139,21 +173,39 @@ function runYTsearch() {
 
 // Main: Get URLs or IDs from first column and transform them into valid VideoIDs (row 2..51)...
 function runCleanVIDs() {
-  const __ACTIVESHEET = getPasteSheet();
-  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, 3).getValues();
-  const __IDS = __IDCOL.map(info => [ safeVID(safeID(info[0], info[1], info[2], null)) ]);
+  const __TEMPLATE = {
+                        'table': __PASTESHEETNAME,
+                        'row': __ROW,
+                        'col': __COL,
+                        'max': __MAX,
+                        'fullCol': true,
+                        'items': {
+                                    'ids': {
+                                              'col': __VIDCOL,
+                                              'width': 3
+                                            }
+                                  }
+                     };
 
-  return setVIDs(__ROW, __COL, __IDS);
+  const __IDCOL = copyData(__TEMPLATE).ids;
+  const __IDS = getList(__IDCOL, (info => [ safeVID(safeID(info[0], info[1], info[2], null)) ]), null);
+
+  __TEMPLATE.items.ids.width = __SINGLECOL;  // TODO: Really, really ugly!
+
+  Logger.log("Setting " + __IDS.length + " clean VIDs...");
+  return populateData(__IDS, __TEMPLATE );  // populateData({ 'ids': __IDS }, __TEMPLATE);
 }
 
 // Main: Get IDs from first column and ChannelIDs from ninth column (row 2..51)
 // and get STATS and CHANNELS...
 function runYTdetails() {
-  const __ACTIVESHEET = getPasteSheet();
-  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, 1).getValues();
-  const __IDS = __IDCOL.map(entry => safeVID(entry)).join(',');
-  const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
-  const __CHANNELIDS = __CHANNELIDCOL.join(',');  // Empty entries!
+  //const __ACTIVESHEET = getPasteSheet();
+  //const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, __SINGLECOL).getValues();
+  //const __IDS = __IDCOL.map(entry => safeVID(entry)).join(',');
+  const __IDS = getColumn(__ROW, __COL, __VIDCOL, __SINGLECOL, (entry => safeVID(entry)));
+  //const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, __SINGLECOL).getValues();
+  //const __CHANNELIDS = __CHANNELIDCOL.join(',');  // Empty entries!
+  const __CHANNELIDS = getColumn(__ROW, __COL, __CHANNELCOL, __SINGLECOL);  // Empty entries!
   const [ __INFO, __STATS ] = getInfoStats(__IDS);
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
 
@@ -162,9 +214,10 @@ function runYTdetails() {
 
 // Main: Get ChannelIDs from ninth column (row 2..51) and get stats for CHANNELS...
 function runYTchannelDetails() {
-  const __ACTIVESHEET = getPasteSheet();
-  const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
-  const __CHANNELIDS = __CHANNELIDCOL.map(entry => safeChannelID(entry, __CHPREFIX)).join(',');  // Empty entries!
+  //const __ACTIVESHEET = getPasteSheet();
+  //const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, __SINGLECOL).getValues();
+  //const __CHANNELIDS = __CHANNELIDCOL.map(entry => safeChannelID(entry, __CHPREFIX)).join(',');  // Empty entries!
+  const __CHANNELIDS = getColumn(__ROW, __COL, __VIDCOL, __SINGLECOL, (entry => safeVID(entry)));   // Empty entries!
   const __INFO = [];
   const __STATS = [];
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
@@ -175,25 +228,35 @@ function runYTchannelDetails() {
 // Main: Get ChannelIDs from 55th column (row 2..51) and get stats for CHANNELS...
 function runYThandleDetails() {
   const __ACTIVESHEET = getPasteSheet();
-  const __SINGLEROW = 1;
-  const __SINGLECOL = 1;
+  const __CHANNELHANDLES = getColumn(__ROW, __COL, __HANDLECOL, __SINGLECOL, null);
   const __INFO = [];
   const __STATS = [];
   let ret = true;
   let handle;
 
-  for (let row = __ROW; row < __ROW + __MAX; row++) {
-    const __CHANNELHANDLECOL = __ACTIVESHEET.getRange(row, __HANDLECOL, __SINGLEROW, __SINGLECOL).getValues();
-    const __CHANNELHANDLE = __CHANNELHANDLECOL.join(',');  // Empty entries!
+  for (let row = 0; row < __CHANNELHANDLES; row++) {
+    //const __CHANNELHANDLECOL = __ACTIVESHEET.getRange(row, __HANDLECOL, __SINGLEROW, __SINGLECOL).getValues();
+    //const __CHANNELHANDLE = __CHANNELHANDLECOL.join(',');  // Empty entries!
+    const __CHANNELHANDLE = __CHANNELHANDLES[row];  // Empty entries!
 
-    if (__CHANNELHANDLE && __CHANNELHANDLE.length) {  Logger.log({ Row: row.toFixed(0), Handle: __CHANNELHANDLE });
+    if (__CHANNELHANDLE && __CHANNELHANDLE.length) {  Logger.log({ Row: (row + __TOPROW).toFixed(0), Handle: __CHANNELHANDLE });
       const __CHANNELSTATS = getChannelStatsForHandle(__CHANNELPART, __CHANNELHANDLE, __SINGLEROW);
 
-      ret &= setYTdetailsData(row, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
+      ret = ret && setYTdetailsData(row, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
     }
   }
 
   return ret;
+}
+
+// Main: Get a playlist ID from $A$6 and show all the videos of this playlist in 50 rows (row 2..51)...
+function runYTplaylist() {
+  const __PLAYLISTID = syncCell(6, 1, 'PLSFgYQhUDHRj8eKSoe-25VwbwPoYhsmze');
+  const __INFO = getPlaylistItems(__PLAYLISTID);
+  const __IDS = getList(__INFO, (info => safeVID(info[0])));
+  const __STATS = getStats(__IDS);
+
+  return setYTsearchData(__ROW, __COL, __INFO, __STATS);
 }
 
 // Main: Clear all areas for INFO, STATS, and CHANNELS...
@@ -236,7 +299,69 @@ function triggerYThandleDetails() {
   return (checkHandleCol() && runYThandleDetails());
 }
 
-function setVIDs(row, col, ids) {  Logger.log("Setting clean setVIDs()...")
+function getColumn(row, col, itemCol, width, mapFun, join = ',') {
+  const __STARTROW = (row || __ROW);
+  const __STARTCOL = (col || __COL);
+  const __ITEMCOL = (itemCol || __LEFTCOL);
+  const __ITEMLEN = __MAX;
+  const __ITEMWIDTH = (width || __SINGLECOL);
+  const __TEMPLATE = {
+                        'table': __PASTESHEETNAME,
+                        'row': __STARTROW,
+                        'col': __STARTCOL,
+                        'fullCol': true,
+                        'items': {
+                                    'data': {
+                                              'col': __ITEMCOL,
+                                              'len': __ITEMLEN,
+                                              'width': __ITEMWIDTH
+                                            }
+                                  }
+                     };
+  const __DATA = copyData(__TEMPLATE).data;
+
+  return getList(__DATA, mapFun, join);
+}
+
+function getList(arr, mapFun, join = ',') {
+  const __DATA = (arr || []);
+  const __MAPPED = (mapFun ? __DATA.map(mapFun, __DATA): __DATA);
+  const __JOINED = (join ? __MAPPED.join(join) : __MAPPED);
+
+  return __JOINED;
+}
+
+function getCell(row, col, dflt, table) {
+  const __DATA = copyDataEx(table, row, col).data;
+  const __ROW =  (__DATA || [])[0];
+  const __ENTRY = (__ROW || [])[0];
+
+  Logger.log("CELL " + A1(row, col, table) + " = " + __ENTRY);
+
+  return (__ENTRY || dflt);
+}
+
+function setCell(row, col, entry, table) {
+  const __DATA = [ [ entry ] ];  // 1x1 range
+
+  Logger.log("CELL " + A1(row, col, table) + " := " + __DATA);
+
+  return populateDataEx(table, row, col, __DATA);
+}
+
+function syncCell(row, col, dflt, table) {
+  const __ENTRY = getCell(row, col, null, table);
+
+  if ((__ENTRY !== dflt) && ! __ENTRY) {
+     setCell(row, col, dflt, table);
+
+     return dflt;
+  }
+
+   return __ENTRY;
+}
+
+function setVIDsObsolete(row, col, ids) {  Logger.log("Setting clean setVIDs()...");
   const __TEMPLATE = {
                         'table': __PASTESHEETNAME,
                         'row': row,
@@ -244,7 +369,7 @@ function setVIDs(row, col, ids) {  Logger.log("Setting clean setVIDs()...")
                      };
   const __DATA = ids;
 
-  return populateData(__TEMPLATE, __DATA);
+  return populateData(__DATA, __TEMPLATE);
 }
 
 function setVIDsOld(row, col, ids) {  Logger.log("Setting clean setVIDs()...");
@@ -262,8 +387,8 @@ function setYTsearchData(row, col, info, stats) {  Logger.log("Setting setYTsear
                         'row': row,
                         'col': col,
                         'items': {
-                                    'info': { 'col': col },
-                                    'stat': { 'col': (__INFOCOL + __INFOWIDTH) }
+                                    'info': { 'col': __INFOSCOL },
+                                    'stat': { 'col': __STATSCOL }
                                   }
                      };
   const __DATA = {
@@ -271,7 +396,7 @@ function setYTsearchData(row, col, info, stats) {  Logger.log("Setting setYTsear
                     'stat': stats
                   };
 
-  return populateData(__TEMPLATE, __DATA);
+  return populateData(__DATA, __TEMPLATE);
 }
 
 function setYTsearchDataOld(row, col, info, stats) {  Logger.log("Setting setYTsearchData() search data...");
@@ -295,7 +420,7 @@ function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {  Logg
                         'row': row,
                         'col': col,
                         'items': {
-                                    'info': { 'col': col },
+                                    'info': { 'col': __INFOSCOL },
                                     'stat': { 'col': statsCol },
                                     'channel': true
                                   }
@@ -306,7 +431,7 @@ function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {  Logg
                     'channel': channelStats
                   };
 
-  return populateData(__TEMPLATE, __DATA);
+  return populateData(__DATA, __TEMPLATE);
 }
 
 function setYTdetailsDataOld(row, col, statsCol, info, stats, channelStats) {  Logger.log("Setting setYTdetailsData() details...");
@@ -328,11 +453,11 @@ function setYTdetailsDataOld(row, col, statsCol, info, stats, channelStats) {  L
   return true;
 }
 
-function clearDetailsData(row, col) {  Logger.log("Clearing clearDetailsData() data..."); Logger.log('(' + row + ", " + col + ')');
-  const __INFOWIDTH = __STATSCOL - __COL;
+function clearDetailsData(row, col) {  Logger.log("Clearing clearDetailsData() data..."); Logger.log(tupel(row, col));
+  const __INFOWIDTH = __STATSCOL - __INFOSCOL;
   const __STATWIDTH = __CHANNELSCOL - __STATSCOL;
   const __CHANWIDTH = __LASTCOL - __CHANNELSCOL + 1;
-  const __INFOCOL = col;
+  const __INFOCOL = __INFOSCOL;
   const __STATCOL = __INFOCOL + __INFOWIDTH;
   const __CHANCOL = __STATCOL + __STATWIDTH;
   const __TEMPLATE = {
@@ -348,15 +473,15 @@ function clearDetailsData(row, col) {  Logger.log("Clearing clearDetailsData() d
                                   }
                      };
 
-  return populateData(__TEMPLATE);
+  return populateData(null, __TEMPLATE);
 }
 
-function clearDetailsDataOld(row, col) {  Logger.log("Clearing clearDetailsData() data..."); Logger.log('(' + row + ", " + col + ')');
+function clearDetailsDataOld(row, col) {  Logger.log("Clearing clearDetailsData() data..."); Logger.log(tupel(row, col));
   const __ACTIVESHEET = getPasteSheet();
   const __INFOLEN = __MAX;
   const __STATLEN = __MAX;
   const __CHANLEN = __MAX;
-  const __INFOWIDTH = __STATSCOL - __COL;
+  const __INFOWIDTH = __STATSCOL - __INFOSCOL;
   const __STATWIDTH = __CHANNELSCOL - __STATSCOL;
   const __CHANWIDTH = __LASTCOL - __CHANNELSCOL + 1;
   const __INFOCOL = col;
@@ -370,27 +495,93 @@ function clearDetailsDataOld(row, col) {  Logger.log("Clearing clearDetailsData(
   return true;
 }
 
-function populate(data) {
-  return populateData(null, data);
-}
-
-function populateData(template, data) {
+function copyData(template) {
   const __CONF = (template || { });
-  const __DATA = data;
 
-  return populateDataEx(__CONF.table, __CONF.row, __CONF.col, __CONF.items, __DATA, __CONF);
+  return copyDataEx(__CONF.table, __CONF.row, __CONF.col, __CONF.items, __CONF);
 }
 
-function populateDataEx(table, row, col, items, data, config) {
+function copyDataEx(table, row, col, items, config) {
   const __TABLE = (table || __PASTESHEETNAME);
   const __STARTROW = (row || __ROW);
   const __STARTCOL = (col || __COL);
-  const __DATA = (items ? (data || []) : { 'data': data });
-  const __ITEMS = (items || { });
+  const __DATA = { };
+  const __ITEMS = (items || { 'data': true });
   const __CONF = (config || { });  // Just for further global parameters!
   const __ACTIVESHEET = setActiveSheet(__TABLE);
-  let nextRow = 0;  // relative to __STARTROW!
-  let nextCol = 0;  // relative to __STARTCOL!
+  let nextRow = __TOPROW;  // relative to __STARTROW!
+  let nextCol = __LEFTCOL;  // relative to __STARTCOL!
+  let lastRow = nextRow;
+  let lastCol = nextCol;
+
+  //Logger.log("Retrieving data from " + pos(__STARTROW, __STARTCOL, __TABLE) + "...");
+  //Logger.log({ 'items': __ITEMS, 'data': Object.keys(__ITEMS) });
+
+  for (const [key, format] of Object.entries(__ITEMS)) {
+    if (format) {
+      const __ITEMROW = addCols(__STARTROW, (format.row || ((format.col === lastCol) ? nextRow : __TOPROW)));  // Top if not same col specified!
+      const __ITEMCOL = addCols(__STARTCOL, (format.col || nextCol));
+      const __ITEMLEN = (format.len || __SINGLEROW);
+      const __ITEMWIDTH = (format.width || __SINGLECOL);
+      const __ITEMMAX = (format.max || __CONF.max || __MAX);
+      const __FULLCOL = ((((typeof format.fullCol) !== 'undefined') || ((typeof __CONF.fullCol) !== 'undefined'))
+                          ? (format.fullCol || __CONF.fullCol) : false);
+      const __ITEMRANGE = __ACTIVESHEET.getRange(__ITEMROW, __ITEMCOL, __ITEMLEN, __ITEMWIDTH);
+      const __COLRANGE = __ACTIVESHEET.getRange(__STARTROW, __ITEMCOL, __ITEMMAX, __ITEMWIDTH);
+      const __GETVALUES = ((__ITEMLEN > 0) && (__ITEMWIDTH > 0));
+
+      if (__GETVALUES) {
+        const __ITEM = (__FULLCOL ? __COLRANGE : __ITEMRANGE).getValues();
+
+        if (__ITEM && ! Array.isArray(__ITEM)) {
+          Logger.log("Error in copyDataEx(): __DATA[" + key + "] with keys (" + Object.keys(__ITEM) + ") is invalid!");
+
+          return null;
+        } else {
+            const __ACTLEN = (((__ITEM && __ITEM.length) ? __ITEM.length : format.len) || __SINGLEROW);
+            const __ACTWIDTH = (((__ITEM && __ITEM[0] && __ITEM[0].length) ? __ITEM[0].length : format.width) || __SINGLECOL);
+
+            lastRow = (__FULLCOL ? __TOPROW : (__ITEMROW - __STARTROW + __TOPROW));
+            lastCol = __ITEMCOL - __STARTCOL + __LEFTCOL;
+            nextRow = (__FULLCOL ? __ITEMMAX + __TOPROW : (lastRow + __ACTLEN));
+            nextCol = lastCol + __ACTWIDTH;
+
+            Logger.log('Key = ' + key // + " -> " + __ITEM
+                      + " @ " + posRange(__ITEMROW, __ITEMCOL, nextRow - lastRow, __ACTWIDTH, __TABLE)
+                      + ", size = " + tupel(__ACTLEN, __ACTWIDTH)
+                      + ", relative " + range(lastRow, lastCol, nextRow - lastRow, __ACTWIDTH)
+                      + (__FULLCOL ? " FULLCOL" : ''));
+
+          __DATA[key] = __ITEM;
+        }
+      } else {
+        Logger.log("No data retrieved for __DATA[" + key + ']');
+      }
+    }
+  }
+
+  Logger.log("Successfully retrieved data from " + pos(__STARTROW, __STARTCOL, __TABLE));
+
+  return __DATA;
+}
+
+function populateData(data, template) {
+  const __CONF = (template || { });
+  const __DATA = data;
+
+  return populateDataEx(__CONF.table, __CONF.row, __CONF.col, __DATA, __CONF.items, __CONF);
+}
+
+function populateDataEx(table, row, col, data, items, config) {
+  const __TABLE = (table || __PASTESHEETNAME);
+  const __STARTROW = (row || __ROW);
+  const __STARTCOL = (col || __COL);
+  const __ITEMS = (items || { });
+  const __CONF = (config || { });  // Just for further global parameters!
+  const __DATA = packDataParam(data, __ITEMS);
+  const __ACTIVESHEET = setActiveSheet(__TABLE);
+  let nextRow = __TOPROW;  // relative to __STARTROW!
+  let nextCol = __LEFTCOL;  // relative to __STARTCOL!
   let lastRow = nextRow;
   let lastCol = nextCol;
 
@@ -402,8 +593,9 @@ function populateDataEx(table, row, col, items, data, config) {
     }
   }
 
-  Logger.log("Populating " + __TABLE + " (" + __STARTROW + ", " + __STARTCOL + ")...");
+  //Logger.log("Populating " + pos(__STARTROW, __STARTCOL, __TABLE) + "...");
   Logger.log({ 'items': __ITEMS, 'data':  (__DATA ? Object.keys(__DATA) : __DATA) });
+  Logger.log(__DATA);
 
   for (const [key, format] of Object.entries(__ITEMS)) {
     const __ITEM = __DATA[key];
@@ -413,27 +605,27 @@ function populateDataEx(table, row, col, items, data, config) {
 
       return false;
     } else if (format) {
-      const __ITEMROW = addCols(__STARTROW, (format.row || ((format.col === lastCol) ? nextRow : 1)));  // Start on top row if not same col specified!
+      const __ITEMROW = addCols(__STARTROW, (format.row || ((format.col === lastCol) ? nextRow : __TOPROW)));  // Top if not same col specified!
       const __ITEMCOL = addCols(__STARTCOL, (format.col || nextCol));
-      const __ITEMLEN = (((__ITEM && __ITEM.length) ? __ITEM.length : format.len) || 1);
-      const __ITEMWIDTH = (((__ITEM && __ITEM[0] && __ITEM[0].length) ? __ITEM[0].length : format.width) || 1);
+      const __ITEMLEN = (((__ITEM && __ITEM.length) ? __ITEM.length : format.len) || __SINGLEROW);
+      const __ITEMWIDTH = (((__ITEM && __ITEM[0] && __ITEM[0].length) ? __ITEM[0].length : format.width) || __SINGLECOL);
       const __ITEMMAX = (format.max || __CONF.max || __MAX);
       const __ITEMRANGE = __ACTIVESHEET.getRange(__ITEMROW, __ITEMCOL, __ITEMLEN, __ITEMWIDTH);
       const __CLEARRANGE = __ACTIVESHEET.getRange(__STARTROW, __ITEMCOL, __ITEMMAX, __ITEMWIDTH);
       const __CLEAR = (__CONF.clear || format.clear);
       const __CLEARCOL = (__CONF.clearCol || format.clearCol);
-      const __SETVALUES = (__ITEM && __ITEMLEN);
+      const __SETVALUES = (__ITEM && __ITEMLEN && __ITEM.length);  // TODO: That last condition should never be problematic, but it is with errors!
 
-      lastRow = (__CLEARCOL ? 1 : (__ITEMROW - __STARTROW + 1));
-      lastCol = __ITEMCOL - __STARTCOL + 1;
-      nextRow = (__CLEARCOL ? __ITEMMAX + 1 : (lastRow + __ITEMLEN));
+      lastRow = (__CLEARCOL ? __TOPROW : (__ITEMROW - __STARTROW + __TOPROW));
+      lastCol = __ITEMCOL - __STARTCOL + __LEFTCOL;
+      nextRow = (__CLEARCOL ? __ITEMMAX + __TOPROW : (lastRow + __ITEMLEN));
       nextCol = lastCol + __ITEMWIDTH;
 
       Logger.log('Key = ' + key // + " -> " + __ITEM
-                + " @ (" + __ITEMROW + ", " + __ITEMCOL
-                + "), size = (" + __ITEMLEN + ", " + __ITEMWIDTH
-                + "), relative (" + lastRow + ", " + lastCol
-                + ") to (" + (nextRow - 1) + ", " + (nextCol - 1) + ")");
+                + " @ " + posRange(__ITEMROW, __ITEMCOL, nextRow - lastRow, __ITEMWIDTH, __TABLE)
+                + ", size = " + tupel(__ITEMLEN, __ITEMWIDTH)
+                + ", relative " + range(lastRow, lastCol, nextRow - lastRow, __ITEMWIDTH)
+                + (__CLEARCOL ? " CLEARCOL" : (__CLEAR ? " CLEAR" : '')));
 
       if (__CLEARCOL) {
         __CLEARRANGE.clearContent();
@@ -447,16 +639,32 @@ function populateDataEx(table, row, col, items, data, config) {
     }
   }
 
-  Logger.log("Successfully populated " + __TABLE + " (" + __STARTROW + ", " + __STARTCOL + ")");
+  Logger.log("Successfully populated " + pos(__STARTROW, __STARTCOL, __TABLE));
 
   return true;
 }
 
-function getSearchInfo(query, max, order, type) {
+function packDataParam(data, items) {
+  const __ITEMS = (items || { });
+
+  if (data && Array.isArray(data)) {
+    const __KEYS = Object.keys(__ITEMS);
+    const __KEY = ((__KEYS.length === 1) ? __KEYS[0] : 'data');
+    const __DATA = { };
+
+    __DATA[__KEY] = data;
+
+    return __DATA;
+  } else {
+    return (data || { });
+  }
+}
+
+function getSearchInfo(search) {
+  const __SEARCH = (search || { });
   const __SELECT = __PART;
   const __EXTRACT = __SELECT;
-  const __LIST = YouTube.Search.list(__SELECT,
-                    { q: query, maxResults: max, order: order, type: type, safeSearch: 'none' });
+  const __LIST = YouTube.Search.list(__SELECT, __SEARCH);
   const __RET = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
 
   return __RET;
@@ -465,7 +673,7 @@ function getSearchInfo(query, max, order, type) {
 function getStats(IDs) {
   const __SELECT = __STATSPART;
   const __EXTRACT = __STATPART;
-  const __LIST = YouTube.Videos.list(__SELECT, { id: IDs });
+  const __LIST = YouTube.Videos.list(__SELECT, { 'id': IDs });
   const __STATS = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
 
   return __STATS;
@@ -475,7 +683,7 @@ function getInfoStats(IDs) {
   const __SELECT = __STATSPART;
   const __EXTRACT = __STATPART;
   const __EXTRACTINFO = __PART;
-  const __LIST = YouTube.Videos.list(__SELECT, { id: IDs });
+  const __LIST = YouTube.Videos.list(__SELECT, { 'id': IDs });
   const __INFO = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACTINFO)) : []);
   const __STATS = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
 
@@ -483,19 +691,19 @@ function getInfoStats(IDs) {
 }
 
 function getChannelStats(parts, channelIDs, max) {
-  const __PARAMS = { id: channelIDs, maxResults: max };
+  const __PARAMS = { 'id': channelIDs, 'maxResults': max };
 
   return getChannelStatsEx(parts, __PARAMS);
 }
 
 function getChannelStatsForHandle(parts, handle, max) {
-  const __PARAMS = { forHandle: handle, maxResults: max };
+  const __PARAMS = { 'forHandle': handle, 'maxResults': max };
 
   return getChannelStatsEx(parts, __PARAMS);
 }
 
 function getChannelStatsForUsername(parts, username, max) {
-  const __PARAMS = { forUsername: username, maxResults: max };
+  const __PARAMS = { 'forUsername': username, 'maxResults': max };
 
   return getChannelStatsEx(parts, __PARAMS);
 }
@@ -533,6 +741,20 @@ function getChannelStatsEx(parts, params) {
   }
 
   return channelStats;
+}
+
+function getPlaylistItems(PlaylistID) {  Logger.log("Starting PlaylistItem list()...");
+  const __SELECT = __ITEMPART;  // __LISTPART, __PINFPART
+  const __EXTRACT = __PLITEMPART;  // __PLLISTPART, __INFOPART
+  Logger.log(PlaylistID); Logger.log(__SELECT); Logger.log(__EXTRACT);
+  //const __LIST = YouTube.PlaylistItems.list(__SELECT, { 'id': PlaylistID });    // 'playlistId' single ID, 'id' comma separated
+  const __LIST = YouTube.PlaylistItems.list(__SELECT, {
+                                                        'playlistId': PlaylistID, // 'playlistId' single ID, 'id' comma separated
+                                                        'maxResults': __MAX
+                                                      });
+  const __STATS = (__LIST.items ? __LIST.items.map(item => mapPlaylistResult(item, __EXTRACT)) : []);
+
+  return __STATS;
 }
 
 function mapResult(item, parts) {
@@ -686,6 +908,73 @@ function mapChannelResult(item, parts) {
   return data;
 }
 
+function mapPlaylistResult(item, parts) {
+  const __PARTS = (parts ? parts.split(',').map(part => part.trim()) : []);
+  const __KIND = item.kind;  // "youtube#playlistItemListResponse",
+  const __ETAG = item.etag;
+  const __NEXT = item.nextPageToken;
+  const __PREV = item.prevPageToken;
+  const __ID = item.id;
+  const __CD = item.contentDetails;
+  const __IDS = (((typeof item.id) === 'string') ? { videoId: __CD.videoId, entryId: __ID, kind: __KIND } : __ID);
+  const __SN = (item.snippet || { });  // Empty entries for PlaylistItem list to fill the gaps!
+  const __RI = (__SN && __SN.resouceId);
+  const __FULLDESC = (__SN && __SN.description);
+  const __DESC = ((__SHORTDESC && __FULLDESC && (__FULLDESC.length >= __DESCLEN - 1))
+                      ? __FULLDESC.substring(0, __DESCLEN) + "..." : __FULLDESC);
+  const __PI = item.pageInfo;
+  const __IT = item.items;
+  const __SU = item.status;
+  let data = [];
+
+  for (let part of __PARTS) {
+    switch (part) {
+      case 'id':          data = data.concat([ __IDS.videoId, __IDS.channelId, __IDS.entryId, __IDS.kind, __ETAG ]);
+                          //data = data.concat([ __IDS.videoId, __IDS.channelId, __IDS.playlistId, __IDS.kind, __ETAG ]);
+                          break;
+      case 'snippet':     /*data = data.concat([ __SN.title, (__SHOWDESC && __DESC),
+                                                isoTime2de(__SN.publishedAt),
+                                                __SN.channelId, __SN.channelTitle,
+                                                __SN.videoOwnerChannelId, __SN.videoOwnerChannelTitle,
+                                                __SN.playlistId, __SN.position,
+                                                (__RI && __RI.kind), (__RI && __RI.videoId),
+                                                isoTime2unix(__SN.publishedAt), isoTime2rel(__SN.publishedAt)
+                                              ]);*/
+                          break;
+      case 'pageInfo':    //data = data.concat([ __PI.totalResults, __PI.resultsPerPage ]);
+                          break;
+      case 'items':       //data = data.concat([ getList(__IT, (item => String(item))) ]);
+                          break;
+      case 'contentDetails': data = data.concat([ // First the delayed data that is not available in 'Search':
+                                                  //(__SN.tags ? __SN.tags.join(", ") : ''),
+                                                  //category(__SN.categoryId), __SN.categoryId, __SN.defaultAudioLanguage, // See "snippet"!
+                                                  // Now to the proper content details...
+                                                  //__CD.videoId,                         // already done in 'id'
+                                                  //__CD.startAt, __CD.endAt, __CD.note,  // startAt/endAt/note are obsolete!
+                                                  //__CD.videoPublishedAt                 // see below...
+                                                  __SN.title, (__SHOWDESC && __DESC),
+                                                  isoTime2de(__CD.videoPublishedAt),
+                                                  __SN.channelId, __SN.channelTitle,
+                                                  __SN.liveBroadcastContent,
+                                                  isoTime2unix(__CD.videoPublishedAt), isoTime2rel(__CD.videoPublishedAt)
+                                                ]);
+                          break;
+      case 'status':      for (let i = 0; i < 23; i++) { data = data.concat([ null ]); }  // Fill some gaps...
+                          data = data.concat([ __SU.privacyStatus ]);
+                          break;
+      default:            break;
+    }
+  }
+
+  if (__SHOWITEM) {
+    data = data.concat([ item.toString() ]);  // for debugging purposes
+  } else {
+    data = data.concat([ '{' + parts + "} " + data.length ]);  // just mark it with a label
+  }
+
+  return data;
+}
+
 function safeID(video, channel, playlist, dflt = __CONFIG.default.vid) {
   if (video) return video;
   if (channel) return channel;
@@ -777,12 +1066,12 @@ function checkCol(col) {
   const __ACTIVESHEET = getActiveSheet();
   const __SHEETNAME = __ACTIVESHEET.getSheetName();
   const __CELL = __ACTIVESHEET.getActiveCell();  // or getCurrentCell()?
-  const __COL = __CELL.getColumn();
+  const __COLUMN = __CELL.getColumn();
   let ret = false;
   Logger.log(__SHEETNAME); Logger.log(__CELL.getA1Notation());
 
   // TODO: From Editor (not triggered), getSheetName() delivers 'Paste' and getColumn() the 'A1' cell! Always! Why?
-  if (__COL === col) {
+  if (__COLUMN === col) {
     ret = true || (__SHEETNAME === __PASTESHEETNAME);
   }
 
@@ -888,9 +1177,75 @@ function isoTime2de(isoTime) {
   return __LOCAL;  // .replace(',', '');
 }
 
-function addCols(start, offset) {
-  // Columns are 1-based, so by adding an offset to a base, we lose 1...
+function addRows(start, offset) {
+  // Rows are 1-based, so by adding an offset to a base, 1 is lost...
   return (start + offset - 1);
+}
+
+function addCols(start, offset) {
+  // Columns are 1-based, so by adding an offset to a base, 1 is lost...
+  return (start + offset - 1);
+}
+
+function posRange(row, col, len = __SINGLEROW, width = __SINGLECOL, table = null, delims = __DEFDELIMS) {
+  return (A1range(row, col, len, width, table) + ' ' + range(row, col, len, width, null, delims));
+}
+
+function position(row, col, table = null, delims = __DEFDELIMS) {
+  return (A1(row, col, table) + ' ' + tupel(row, col, table, delims));
+}
+
+function pos(row, col, table = null, delims = __DEFDELIMS) {
+  return (A1(row, col, table) + ' ' + tupel(row, col, null, delims));
+}
+
+function A1range(row, col, len = __SINGLEROW, width = __SINGLECOL, table = null) {
+  const __REL = ':';
+
+  return (A1(row, col, table) + __REL + A1(row + len - 1, col + width - 1));
+}
+
+function A1(row, col, table = null) {
+  const __TABLE = (table ? table + '!' : '');  // Google Sheets format
+  const __A = 65;  // char code 'A'
+  let quot = col - 1;  // 1-based to 0-based!
+  let rest = 0;
+  let ret = '';
+
+  do {
+    const __QUOT = quot;
+
+    // Shift quot by a letter digit...
+    rest = __QUOT % 26;
+    quot = (__QUOT - rest) / 26 - 1;
+
+    ret = String.fromCharCode(__A + rest) + ret; 
+  } while (quot >= 0);
+
+  return (__TABLE + ret + row);
+}
+
+function RCrange(row, col, len = __SINGLEROW, width = __SINGLECOL, table = null) {
+  return range(row, col, len, width, table, __RCDELIMS)
+}
+
+function RC(row, col, table = null) {
+  return tupel(row, col, table, __RCDELIMS)
+}
+
+function range(row, col, len = __SINGLEROW, width = __SINGLECOL, table = null, delims = __DEFDELIMS) {
+  const __REL = (delims[3] || ' - ');
+
+  return (tupel(row, col, table, delims) + __REL + tupel(row + len - 1, col + width - 1, null, delims));
+}
+
+function tupel(row, col, table = null, delims = __DEFDELIMS) {
+  const __TABLE = (table ? table + ' ' : '');
+  const __OPEN = delims[0];
+  const __JOIN = delims[1];
+  const __CLOSE = delims[2];
+
+  return (__TABLE + __OPEN + row + __JOIN + col + __CLOSE);
 }
 
 // Test: mapResult()...
@@ -983,20 +1338,70 @@ function testSafeChannelID() {
   }
 }
 
-// Test: populateData()...
+// Test: copyData(), copyDataEx()...
+function testCopyData() {
+  Logger.log(copyData({ 'fullCol': false, 'items': { 'clear': { 'len': 2, 'width': 3, 'clear': true }}}));
+
+  Logger.log(copyData());
+
+  Logger.log(copyDataEx(null, 3, 5, { 'a': true, 'b': true }));
+
+  Logger.log(copyData({ 'row': 5, 'col': 7,  'fullCol': false, 'items': {
+                                                                          '0': { 'col': __LEFTCOL },
+                                                                          '2': { 'col': __LEFTCOL },
+                                                                          '3': { 'col': __LEFTCOL }
+                                                                        }}));
+}
+
+// Test: populateData(), populateDataEx()...
 function testPopulateData() {
   const __DATA = [ ['This', 'is'], [ 'a', 'test.' ] ];
   const __DATA2 = [ [ 'More' ], [ 'data!' ] ];
   const __DATA3 = [ [ 'This' ], [ 'is' ], [ 'just' ], [ 'ordinary' ], [ 'data' ] ];
 
-  populateData({ items: { 'clear': { 'len': 12, 'width': 9, 'clear': true }}});
+  populateData(null, { 'items': { 'clear': { 'len': 12, 'width': 9, 'clear': true }}});  // Clean area...
 
-  populate(__DATA3);
+  populateData(__DATA3);
 
-  populateData(null, __DATA);
+  populateData(__DATA, null);
 
-  populateDataEx(null, 3, 5, { }, { 'a': __DATA, 'b': __DATA2 });
+  populateDataEx(null, 3, 5, { 'a': __DATA, 'b': __DATA2 });
 
-  populateData({ 'row': 5, 'col': 7, items: { '0': { 'col': 1 }, '2': { 'col': 1 }, '3': { 'col': 1 }}},
-                                            { '0': __DATA, '2': __DATA2, '3': __DATA3 });
+  populateData({ '0': __DATA, '2': __DATA2, '3': __DATA3 }, { 'row': 5, 'col': 7, 'items': {
+                                                                                              '0': { 'col': __LEFTCOL },
+                                                                                              '2': { 'col': __LEFTCOL },
+                                                                                              '3': { 'col': __LEFTCOL }
+                                                                                            }});
+
+  populateDataEx(null, 3, 2, __DATA3, { 'dummy': true });
+}
+
+// Test: pos(), position(), posRange(), tupel(), range(), A1(), A1range(), RC(), RCrange()...
+function testPosRange() {
+  Logger.log(A1(7, 42));
+
+  Logger.log(pos(2, 1, __PASTESHEETNAME));
+
+  Logger.log(position(1, 5, __PASTESHEETNAME));
+
+  Logger.log(pos(3, 2));
+
+  Logger.log(pos(5, 42));
+
+  Logger.log(range(2, 1, 2, 2, __PASTESHEETNAME));
+
+  Logger.log(range(3, 2, 10, 10));
+
+  Logger.log(A1range(4, 2, 3, 3, __PASTESHEETNAME));
+
+  Logger.log(RCrange(5, 3, 4, 4, __PASTESHEETNAME));
+
+  Logger.log(posRange(3, 6, 4, 6, __PASTESHEETNAME));
+}
+
+// Test: syncCell(), getCell(), setCell()...
+function testSyncCell() {
+  const __DATA = syncCell(6, __LEFTCOL, 'Test');
+
+  Logger.log("__DATA = " + __DATA);
 }
