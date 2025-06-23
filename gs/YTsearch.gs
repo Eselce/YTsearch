@@ -468,8 +468,10 @@ function safeID(video, channel, playlist, dflt = 'jNQXAC9IVRw') {  // ZOO Video
 
 function safeVID(url, dflt) {  // strips url to pure video-ID...
   const __FULLURL = String(url);
-  const __PATTERNS = [ /^(\S{11})$/, /^https?:\/\/www\.youtube\.\S+\/watch\?v=(\S{11})(&\S+=\S+)*$/,
-                        /^https?:\/\/youtu\.be\/(\S{11})\/?(\?\S+=\S+)?(&\S+=\S+)*$/ ];
+  const __PATTERNS = [ /^(\S{11})$/,
+                        /^https?:\/\/www\.youtube\.\S+\/watch\?v=(\S{11})(&\S+=\S+)*$/,
+                        /^https?:\/\/www\.youtube\.\S+\/shorts\/(\S{11})\/?((\?\S+=\S+)(&\S+=\S+)*)?$/,
+                        /^https?:\/\/youtu\.be\/(\S{11})\/?((\?\S+=\S+)(&\S+=\S+)*)?$/ ];
 
   for (let pattern of __PATTERNS) {
     if (pattern.test(__FULLURL)) {
@@ -576,6 +578,10 @@ function PT2time(duration, timeFormat = true) {
 
   if (duration && duration.startsWith('P')) {
     let s = duration.replace(/^P(.*)T(.*)/, '$1$2');
+
+    if (s === 'P0D') {  // special value!
+      return null;  // null instead of '00:00:00' or NaN!
+    }
 
     while (s) {
       const __VAL = Number.parseInt(s, 10);
@@ -691,7 +697,8 @@ function testPT2time() {
 // Test: safeVID()...
 function testSafeVID() {
   const __URLs = [ 'https://www.youtube.com/watch?v=95vBFa2tKsk', 'https://www.youtube.com/watch?v=TnIm1VkWx6Y&t=2s',
-                    'https://youtu.be/cCMZK59dfkg', 'http://youtu.be/cCMZK59dfkg?t=5s', '99zsH6iG_6c', 'yYEUGlFNBKc+' ];
+                    'https://youtu.be/cCMZK59dfkg', 'http://youtu.be/cCMZK59dfkg?t=5s', '99zsH6iG_6c', 'yYEUGlFNBKc+',
+                    'https://www.youtube.com/shorts/JL7ciGyRGpQ?t=2s', 'https://www.youtube.com/shorts/JL7ciGyRGpQ/' ];
 
   for (let url of __URLs)  {
     const __VID = safeVID(url);
