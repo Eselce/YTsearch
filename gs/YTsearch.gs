@@ -9,11 +9,11 @@ const __STATSCOL = __CHANNELCOL + 10;  // 'S' See makeResult() and adapt to corr
 const __CHANNELSCOL = __STATSCOL + 33;  // 'AZ' See makeResult() and adapt to correct value!
 const __HANDLECOL = __CHANNELSCOL + 3;  // 'BC' See makeChannelResult() and adapt to correct value!
 const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
-const __SHOWITEM = !false;  // Do we need the raw package?
-const __SHORTDESC = true;  // Cut description fields in order to not break the layout?
+const __SHOWITEM = false;  // Do we need the raw package?
+const __SHORTDESC = !true;  // Cut description fields in order to not break the layout?
 const __DESCLEN = (__SHORTDESC ? 50 : -1);  // Max length of description (only "snippet" for videos and channels)
 const __SHOWDESC = true;  // Do we need the description at all?
-const __SHOWPASTE = true;
+const __SHOWPASTE = true;  // Show the combined summary to paste in Discord!
 
 // Parameters for YTsearch...
 const __QUERY = "lovebites";  // Put search query here!
@@ -28,7 +28,7 @@ const __STATSPART = __PART + ", " + __STATPART;
 const __CHANNELPART = __PART + ", " + __CHANPART;
 
 // Main: Search and get STATS and CHANNELS...
-function runYTall() {
+function runYTall() {  Logger.log("Starting runYTall() search...");
   const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
   const __IDS = __INFO.map(info => safeID(info[0], info[1], info[2])).join(',');
   const __CHANNELIDS = __INFO.map(info => info[__CHANNELCOL - 1]).join(',');
@@ -438,7 +438,7 @@ function checkCol(col) {
 
   // TODO: From Editor (not triggered), getSheetName() delivers 'Paste' and getColumn() the 'A1' cell! Always! Why?
   if (__COL === col) {
-    ret = (__SHEETNAME === __PASTESHEETNAME);
+    ret = true || (__SHEETNAME === __PASTESHEETNAME);
   }
 
   return ret;
