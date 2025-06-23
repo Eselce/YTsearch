@@ -3,8 +3,9 @@
 const __ROW = 2;
 const __COL = 1;
 const __CHANNELCOL = 8;
-const __STATSCOL = __CHANNELCOL + 9;  // See makeResult() and adapt!
+const __STATSCOL = __CHANNELCOL + 9;  // 'Q' See makeResult() and adapt to correct value!
 const __MAX = 50;  // 0..50, default: 5
+const __SHOWITEM = false;  // Do we need the raw package?
 
 // Parameters for YTsearch...
 const __QUERY = "lovebites";
@@ -18,6 +19,7 @@ const __TYPE = 'video';  // default: 'video,channel,playlist'
 const __STATSPART = __PART + ", " + __STATPART;
 const __CHANNELPART = __PART + ", " + __CHANPART;
 
+// Main: Search and get STATS and CHANNELS...
 function runYTall() {
   const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
   const __IDS = __INFO.map(info => safeID(info[0], info[1], info[2])).join(',');
@@ -28,6 +30,20 @@ function runYTall() {
   return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
+// Main: Get IDs from first column (row 2..51) and get STATS and CHANNELS...
+function runYTdetailsAll() {
+  const __ACTIVESHEET = getActiveSheet();
+  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __COL, __MAX, 1).getValues();
+  const __IDS = __IDCOL.join(',');
+  const [ __INFO, __STATS ] = getInfoStats(__IDS);
+  const __CHANNELIDS = __INFO.map(info => info[__CHANNELCOL - 1]).join(',');
+  const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
+
+  return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
+}
+
+// Main: Get IDs from first column and ChannelIDs from eigths column (row 2..51)
+// and get CHANNELS...
 function runYTsearch() {
   const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
   const __IDS = __INFO.map(info => safeID(info[0], info[1], info[2])).join(',');
@@ -36,6 +52,8 @@ function runYTsearch() {
   return setYTsearchData(__ROW, __COL, __INFO, __STATS);
 }
 
+// Main: Get IDs from first column and ChannelIDs from eigths column (row 2..51)
+// and get STATS and CHANNELS...
 function runYTdetails() {
   const __ACTIVESHEET = getActiveSheet();
   const __IDCOL = __ACTIVESHEET.getRange(__ROW, __COL, __MAX, 1).getValues();
@@ -113,8 +131,8 @@ function getInfoStats(IDs) {
   return [ __INFO, __STATS ];
 }
 
-function getChannelStats(part, channelIDs, max) {
-  const __SELECT = part;
+function getChannelStats(parts, channelIDs, max) {
+  const __SELECT = parts;
   const __EXTRACT = __SELECT;
   const __LIST = YouTube.Channels.list(__SELECT, { id: channelIDs, maxResults: max });
   const __CHANNELSTATS = __LIST.items.map(item => mapChannelResult(item, __EXTRACT));
@@ -134,8 +152,8 @@ function getChannelStats(part, channelIDs, max) {
   return channelStats;
 }
 
-function mapResult(item, part) {
-  const __PARTS = part.split(',').map(part => part.trim());
+function mapResult(item, parts) {
+  const __PARTS = parts.split(',').map(part => part.trim());
   const __ID = (((typeof item.id) === 'string') ? { videoId : item.id, kind: item.kind } : item.id);
   const __SN = item.snippet;
   const __CD = item.contentDetails;
@@ -155,7 +173,11 @@ function mapResult(item, part) {
                                                 __SN.channelId, __SN.channelTitle,
                                                 __SN.liveBroadcastContent,  // 'upcoming', 'live', 'none'
                                                 __SN.categoryId, __SN.defaultAudioLanguage,
-                                                isoTime2unix(__SN.publishedAt), isoTime2rel(__SN.publishedAt) ]);
+                                                isoTime2unix(__SN.publishedAt), isoTime2rel(__SN.publishedAt),
+                                                //isoTime2de(__SN.publishTime), isoTime2unix(__SN.publishTime),
+                                                //isoTime2rel(__SN.publishTime),  // See __SN.publishedAt!
+                                                (__SN.tags ? __SN.tags.join(", ") : '')
+                                              ]);
                           break;
       case 'contentDetails': data = data.concat([ __CD.definition, __CD.caption, __CD.projection,
                                                   __CD.licensedContent, __CD.dimension,
@@ -176,24 +198,49 @@ function mapResult(item, part) {
 
                           // Paste string for Discord...
                           const __PREMIERE = ((__SN.liveBroadcastContent === 'none') ? '' : "Premiere ")
-                                              + ((__SN.liveBroadcastContent === 'live') ? "NOW " : '') + '('; 
-                          const __DISCORD = ((__SN.liveBroadcastContent == 'none') ? '[' + (__SN && isoTime2rel(__SN.publishedAt)) + "] "
-                                                                      : __PREMIERE + (__LS && isoTime2rel(__LS.scheduledStartTime)) + ") ")
-                                              + "https://youtu.be/" + __ID.videoId;
+                                              + ((__SN.liveBroadcastContent === 'live') ? "NOW " : '') + '(';
+                          const __EXPREMIERE = ((__LS && __LS.scheduledStartTime
+                                                      && (__SN.liveBroadcastContent === 'none')) ? "Premiere " : '');
+                                                // This was scheduled, but it's over now and live... === 'none'
+                          const __MINS = (isoTime2unix(__LS && __LS.scheduledStartTime) - isoTime2unix()) / 60;
+                          const __WHEN = ((__SN.liveBroadcastContent === 'upcoming')
+                                                ? ((__MINS < 2) ? "NOW "
+                                                : ((__MINS < 66) ? __MINS + " minutes "
+                                                                  : (__MINS / 60).toFixed(1) + " hours "))
+                                                : '');
+                          const __DISCORD = ((__SN.liveBroadcastContent === 'none')
+                                                ? '[' + __EXPREMIERE + (__SN && isoTime2rel(__SN.publishedAt)) + "] "
+                                                : __PREMIERE + __WHEN
+                                                      + (__LS && isoTime2rel(__LS.scheduledStartTime)) + "): ")
+                                                      + "https://youtu.be/" + __ID.videoId
+                                                      + (__EXPREMIERE.length ? " DONE" : '');
+                          const __CC = ((__CD && (__CD.caption.toLowerCase() === 'true')) ? "CC " : '');
+                          const __LANG = (__SN.defaultAudioLanguage ? __SN.defaultAudioLanguage + ' ' : '');
+                          const __VLEN = PT2time(__CD.duration);
+                          const __VLENDISP = (__VLEN ? (__VLEN.startsWith("00:")
+                                                        ? __VLEN.substring(3) : __VLEN) + ' ' : 'live');
+                          const __DISCORDINFO = "\n[" + __VLENDISP + __CC + __LANG
+                                                      + __CD.definition + '(' + __CD.dimension + ")] "
+                                                      + __SN.channelTitle + '\n' + __SN.title;
+                          const __DISCORDFULL = __DISCORD + __DISCORDINFO;
 
-                          data = data.concat([ __DISCORD ]);
+                          data = data.concat([ __DISCORD, __DISCORDFULL ]);  // Avoid "...\n..."!
                           break;
       default:            break;
     }
   }
 
-  data = data.concat([ item.toString() ]);  // for debugging purposes
+  if (__SHOWITEM) {
+    data = data.concat([ item.toString() ]);  // for debugging purposes
+  } else {
+    data = data.concat([ '{' + parts + "} " + data.length ]);  // just mark it with a label
+  }
 
   return data;
 }
 
-function mapChannelResult(item, part) {
-  const __PARTS = part.split(',').map(part => part.trim());
+function mapChannelResult(item, parts) {
+  const __PARTS = parts.split(',').map(part => part.trim());
   const __ID = item.id;
   const __KIND = item.kind;
   const __SN = item.snippet;
@@ -218,7 +265,11 @@ function mapChannelResult(item, part) {
     }
   }
 
-  data = data.concat([ item.toString() ]);  // for debugging purposes
+  if (__SHOWITEM) {
+    data = data.concat([ item.toString() ]);  // for debugging purposes
+  } else {
+    data = data.concat([ '{' + parts + "} " + data.length ]);  // just mark it with a label
+  }
 
   return data;
 }
@@ -292,19 +343,33 @@ function isoTime2de(isoTime) {
   return __LOCAL;  // .replace(',', '');
 }
 
+// Test: mapResult()...
 function testMap() {
   const __ITEM = { id: { videoId: 'cEAmmT-T0Fg', kind: 'youtube#video' },
                     snippet: { publishedAt: '2025-01-23T16:17:20Z',
-                      description: 'This is a reaction to the song "we are the Resurrection" performed by LOVEBITES live from Memorial for the Warrior\'s Soul.',
+                      description: ('This is a reaction to the song "we are the Resurrection" ' +
+                      'performed by LOVEBITES live from Memorial for the Warrior\'s Soul.'),
                       channelId: 'UCMRBbkpiK8JnDg9kTQdYPtA', channelTitle: 'vintage_sol',
                       title: 'LOVEBITES-We are the Resurrection OLV(1st time reaction)',
                       publishTime: '2025-01-23T16:17:20Z',
-                      tags: [ 'Lovebites', 'Lovebites reaction video', 'Soldier Stands Solitarily Lovebites', 'Soldier Stands Solitarily song', 'reaction videos' ], defaultAudioLanguage: 'en-US', categoryId: '19', liveBroadcastContent: 'none' }, contentDetails: { licensedContent: false, contentRating: { },definition: 'hd', dimension: '2d', projection: 'rectangular', caption: 'false', duration: 'PT10M50S' }, topicDetails: { topicCategories: [ 'https://en.wikipedia.org/wiki/Music', 'https://en.wikipedia.org/wiki/Rock_music' ] }, status: { privacyStatus: 'public', publicStatsViewable: true, uploadStatus: 'processed', madeForKids: false, license: 'youtube', embeddable: true }, statistics: { viewCount: '500', likeCount: '130', commentCount: '19', favoriteCount: '0' }, liveStreamingDetails: { actualEndTime: '2025-01-24T22:12:07Z', actualStartTime: '2025-01-24T22:00:09Z', scheduledStartTime: '2025-01-24T22:00:00Z', activeLiveChatId: '[...]' } };  // Mixed a real life entry with a premiere schedule (no chat)
+                      tags: [ 'Lovebites', 'Lovebites reaction video', 'Soldier Stands Solitarily Lovebites',
+                      'Soldier Stands Solitarily song', 'reaction videos' ], defaultAudioLanguage: 'en-US',
+                      categoryId: '19', liveBroadcastContent: 'none' }, contentDetails: { licensedContent: false,
+                      contentRating: { },definition: 'hd', dimension: '2d', projection: 'rectangular',
+                      caption: 'false', duration: 'PT10M50S' }, topicDetails: { topicCategories: [
+                        'https://en.wikipedia.org/wiki/Music', 'https://en.wikipedia.org/wiki/Rock_music' ] },
+                      status: { privacyStatus: 'public', publicStatsViewable: true, uploadStatus: 'processed',
+                      madeForKids: false, license: 'youtube', embeddable: true }, statistics: { viewCount: '500',
+                      likeCount: '130', commentCount: '19', favoriteCount: '0' }, liveStreamingDetails: {
+                        actualEndTime: '2025-01-24T22:12:07Z', actualStartTime: '2025-01-24T22:00:09Z',
+                        scheduledStartTime: '2025-01-24T22:00:00Z', activeLiveChatId: '[...]' }
+                      };  // Mixed a real life entry with a premiere schedule (no chat)
   const __RET = mapResult(__ITEM, __STATSPART);
 
   Logger.log(__RET);
 }
 
+// Test: isoTime2unix(), isoTime2de(), isoTime2rel()...
 function testIsoTime() {
   const __TIME = '2025-01-23T16:17:20Z';
   const __NOW = new Date();
@@ -325,10 +390,14 @@ function testIsoTime() {
   Logger.log({ now_rel: __NOWREL });
 }
 
+// Test: PT2time()...
 function testPT2time() {
-
   const __PTs = [ 'PT1M29S', 'PT15M8S', 'PT9M8S', 'PT31M20S', 'PT11M55S', 'PT5M49S', 'PT25S', 'PT7M21S', 'PT6M25S',
-                  'PT7M52S', 'PT21S', 'PT10M42S', 'PT6M7S', 'PT23S', 'PT7M48S', 'PT13S', 'PT11S', 'PT15M8S', 'PT3M29S', 'PT11M59S', 'PT11S', 'PT19M24S', 'PT15S', 'PT17M48S', 'PT12M58S', 'PT11M59S', 'PT8M46S', 'PT9M23S', 'PT14S', 'PT25S', 'PT6S', 'PT2H12M22S', 'PT1M', 'PT7M21S', 'PT5M33S', 'PT6M6S', 'PT19S', 'PT19S', 'PT13M5S', 'PT20S', 'PT24M30S', 'PT9M50S', 'PT17S', 'PT20M34S', 'PT12S', 'PT15S', 'PT11M27S', 'PT38S', 'PT35S',  // 50 real life 'duration' values
+                  'PT7M52S', 'PT21S', 'PT10M42S', 'PT6M7S', 'PT23S', 'PT7M48S', 'PT13S', 'PT11S', 'PT15M8S',
+                  'PT3M29S', 'PT11M59S', 'PT11S', 'PT19M24S', 'PT15S', 'PT17M48S', 'PT12M58S', 'PT11M59S',
+                  'PT8M46S', 'PT9M23S', 'PT14S', 'PT25S', 'PT6S', 'PT2H12M22S', 'PT1M', 'PT7M21S', 'PT5M33S',
+                  'PT6M6S', 'PT19S', 'PT19S', 'PT13M5S', 'PT20S', 'PT24M30S', 'PT9M50S', 'PT17S', 'PT20M34S',
+                  'PT12S', 'PT15S', 'PT11M27S', 'PT38S', 'PT35S',  // 50 real life 'duration' values
                   '', null, 'null', 'P12DT4H36M54S' ];  // ... and some missing ones and a longer one from scratch
 
   for (duration of __PTs)  {
