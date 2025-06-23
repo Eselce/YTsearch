@@ -3,13 +3,15 @@
 const __ROW = 2;
 const __COL = 1;
 const __PASTESHEETNAME = 'Paste';
-const __VIDCOL = __COL;
-const __CHANNELCOL = 9;
-const __STATSCOL = __CHANNELCOL + 9;  // 'R' See makeResult() and adapt to correct value!
-const __CHANNELSCOL = __STATSCOL + 33;  // 'AZ' See makeResult() and adapt to correct value!
+const __INFOSCOL = __COL;
+const __VIDCOL = __INFOSCOL;  // 'A' See makeResult() and adapt to correct value!
+const __CHANNELCOL = __INFOSCOL + 8;  // 'I' See makeResult() and adapt to correct value!
+const __STATSCOL = __INFOSCOL + 17;  // 'R' See makeResult() and adapt to correct value!
+const __CHANNELSCOL = __STATSCOL + 34;  // 'AZ' See makeResult() and adapt to correct value!
 const __HANDLECOL = __CHANNELSCOL + 3;  // 'BC' See makeChannelResult() and adapt to correct value!
+const __LASTCOL = __CHANNELSCOL + 15;  // 'BN' See makeChannelResult() and adapt to correct value!
 const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
-const __SHOWITEM = false;  // Do we need the raw package?
+const __SHOWITEM = false;  // Do we need the raw JSON package?
 const __SHORTDESC = false;  // Cut description fields in order to not break the layout?
 const __DESCLEN = (__SHORTDESC ? 50 : -1);  // Max length of description (only "snippet" for videos and channels)
 const __SHOWDESC = true;  // Do we need the description at all?
@@ -103,9 +105,19 @@ function runYThandleDetails() {
   return setYTdetailsData(__ROW, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
+// Main: Clear all areas for INFO, STATS, and CHANNELS...
+function runClearAll() {
+  return clearDetailsData(__ROW, __COL);
+}
+
 // Main: Run nothing, but only if you are active on the 'Paste' sheet!
 function triggerOff() {
   return checkVidCol();
+}
+
+// Main: Run runClearAll(), but only if you are active on the 'Paste' sheet!
+function triggerClearAll() {
+  return (checkVidCol() && runClearAll());
 }
 
 // Main: Run runYTAll(), but only if you are active on the 'Paste' sheet!
@@ -156,9 +168,28 @@ function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {  Logg
   const __STATCOL = statsCol;
   const __CHANCOL = __STATCOL + __STATWIDTH;
 
-  if (__INFOLEN) { __ACTIVESHEET.getRange(row, __INFOCOL, __INFOLEN, __INFOWIDTH).setValues(info) };
-  if (__STATLEN) { __ACTIVESHEET.getRange(row, __STATCOL, __STATLEN, __STATWIDTH).setValues(stats) };
-  if (__CHANLEN) { __ACTIVESHEET.getRange(row, __CHANCOL, __CHANLEN, __CHANWIDTH).setValues(channelStats) };
+  if (__INFOLEN) { __ACTIVESHEET.getRange(row, __INFOCOL, __INFOLEN, __INFOWIDTH).setValues(info); }
+  if (__STATLEN) { __ACTIVESHEET.getRange(row, __STATCOL, __STATLEN, __STATWIDTH).setValues(stats); }
+  if (__CHANLEN) { __ACTIVESHEET.getRange(row, __CHANCOL, __CHANLEN, __CHANWIDTH).setValues(channelStats); }
+
+  return true;
+}
+
+function clearDetailsData(row, col) {  Logger.log("Clearing clearDetailsData() data..."); Logger.log('(' + row + ", " + col + ')');
+  const __ACTIVESHEET = getPasteSheet();
+  const __INFOLEN = __MAX;
+  const __STATLEN = __MAX;
+  const __CHANLEN = __MAX;
+  const __INFOWIDTH = __STATSCOL - __COL;
+  const __STATWIDTH = __CHANNELSCOL - __STATSCOL;
+  const __CHANWIDTH = __LASTCOL - __CHANNELSCOL + 1;
+  const __INFOCOL = col;
+  const __STATCOL = __INFOCOL + __INFOWIDTH;
+  const __CHANCOL = __STATCOL + __STATWIDTH;
+
+  if (__INFOLEN) { __ACTIVESHEET.getRange(row, __INFOCOL, __INFOLEN, __INFOWIDTH).clearContent(); }
+  if (__STATLEN) { __ACTIVESHEET.getRange(row, __STATCOL, __STATLEN, __STATWIDTH).clearContent(); }
+  if (__CHANLEN) { __ACTIVESHEET.getRange(row, __CHANCOL, __CHANLEN, __CHANWIDTH).clearContent(); }
 
   return true;
 }
