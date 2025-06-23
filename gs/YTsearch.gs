@@ -5,12 +5,12 @@ const __COL = 1;
 const __PASTESHEETNAME = 'Paste';
 const __VIDCOL = __COL;
 const __CHANNELCOL = 9;
-const __STATSCOL = __CHANNELCOL + 10;  // 'S' See makeResult() and adapt to correct value!
+const __STATSCOL = __CHANNELCOL + 9;  // 'R' See makeResult() and adapt to correct value!
 const __CHANNELSCOL = __STATSCOL + 33;  // 'AZ' See makeResult() and adapt to correct value!
 const __HANDLECOL = __CHANNELSCOL + 3;  // 'BC' See makeChannelResult() and adapt to correct value!
 const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
 const __SHOWITEM = false;  // Do we need the raw package?
-const __SHORTDESC = !true;  // Cut description fields in order to not break the layout?
+const __SHORTDESC = false;  // Cut description fields in order to not break the layout?
 const __DESCLEN = (__SHORTDESC ? 50 : -1);  // Max length of description (only "snippet" for videos and channels)
 const __SHOWDESC = true;  // Do we need the description at all?
 const __SHOWPASTE = true;  // Show the combined summary to paste in Discord!
@@ -103,6 +103,11 @@ function runYThandleDetails() {
   return setYTdetailsData(__ROW, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
+// Main: Run nothing, but only if you are active on the 'Paste' sheet!
+function triggerOff() {
+  return checkVidCol();
+}
+
 // Main: Run runYTAll(), but only if you are active on the 'Paste' sheet!
 function triggerYTall() {
   return (checkVidCol() && runYTall());
@@ -123,7 +128,7 @@ function triggerYThandleDetails() {
   return (checkHandleCol() && runYThandleDetails());
 }
 
-function setYTsearchData(row, col, info, stats) {
+function setYTsearchData(row, col, info, stats) {  Logger.log("Setting setYTsearchData() search data...");
   const __ACTIVESHEET = getPasteSheet();
   const __INFOLEN = ((info && info.length) ? info.length : 0);
   const __STATLEN = ((stats && stats.length) ? stats.length : 0);
@@ -138,7 +143,7 @@ function setYTsearchData(row, col, info, stats) {
   return true;
 }
 
-function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {
+function setYTdetailsData(row, col, statsCol, info, stats, channelStats) {  Logger.log("Setting setYTdetailsData() details...");
 //  Logger.log(info); Logger.log(stats); Logger.log(channelStats);
   const __ACTIVESHEET = getPasteSheet();
   const __INFOLEN = ((info && info.length) ? info.length : 0);
@@ -267,15 +272,18 @@ function mapResult(item, parts) {
                                                 isoTime2de(__SN.publishedAt),
                                                 __SN.channelId, __SN.channelTitle,
                                                 __SN.liveBroadcastContent,  // 'upcoming', 'live', 'none'
+                                                // These one (tags) is missing in 'Search'! Later...
+                                                // (__SN.tags ? __SN.tags.join(", ") : ''),
                                                 // These two (categoryId and defaultAudioLanguage) are missing in 'Search'! Later...
                                                 // category(__SN.categoryId), __SN.categoryId, __SN.defaultAudioLanguage,
                                                 isoTime2unix(__SN.publishedAt), isoTime2rel(__SN.publishedAt),
                                                 isoTime2de(__SN.publishTime), isoTime2unix(__SN.publishTime),
-                                                isoTime2rel(__SN.publishTime),  // See __SN.publishedAt!
-                                                (__SN.tags ? __SN.tags.join(", ") : '')
+                                                isoTime2rel(__SN.publishTime)  // See __SN.publishedAt!
                                               ]);
                           break;
-      case 'contentDetails': data = data.concat([ category(__SN.categoryId), __SN.categoryId, __SN.defaultAudioLanguage, // See "snippet"!
+      case 'contentDetails': data = data.concat([ // First the delayed data that is not available in 'Search':
+                                                  (__SN.tags ? __SN.tags.join(", ") : ''),
+                                                  category(__SN.categoryId), __SN.categoryId, __SN.defaultAudioLanguage, // See "snippet"!
                                                   // Now to the proper content details...
                                                   __CD.definition, __CD.caption, __CD.projection,
                                                   __CD.licensedContent, __CD.dimension,
