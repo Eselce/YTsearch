@@ -32,7 +32,7 @@ const __CHANNELPART = __PART + ", " + __CHANPART;
 // Main: Search and get STATS and CHANNELS...
 function runYTall() {  Logger.log("Starting runYTall() search...");
   const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
-  const __IDS = __INFO.map(info => safeID(info[0], info[1], info[2])).join(',');
+  const __IDS = __INFO.map(info => safeVID(safeID(info[0], info[1], info[2]))).join(',');
   const __CHANNELIDS = __INFO.map(info => info[__CHANNELCOL - 1]).join(',');
   const __STATS = getStats(__IDS);
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
@@ -44,7 +44,7 @@ function runYTall() {  Logger.log("Starting runYTall() search...");
 function runYTdetailsAll() {
   const __ACTIVESHEET = getPasteSheet();
   const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, 1).getValues();
-  const __IDS = __IDCOL.join(',');
+  const __IDS = __IDCOL.map(entry => safeVID(entry)).join(',');
   const [ __INFO, __STATS ] = getInfoStats(__IDS);
   const __CHANNELIDS = __INFO.map(info => info[__CHANNELCOL - 1]).join(',');
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
@@ -56,18 +56,27 @@ function runYTdetailsAll() {
 // and get CHANNELS...
 function runYTsearch() {
   const __INFO = getSearchInfo(__QUERY, __MAX, __ORDER, __TYPE);
-  const __IDS = __INFO.map(info => safeID(info[0], info[1], info[2])).join(',');
+  const __IDS = __INFO.map(info => safeVID(safeID(info[0], info[1], info[2]))).join(',');
   const __STATS = getStats(__IDS);
 
   return setYTsearchData(__ROW, __COL, __INFO, __STATS);
 }
 
-// Main: Get IDs from first column and ChannelIDs from eigth column (row 2..51)
+// Main: Get URLs or IDs from first column and transform them into valid VideoIDs (row 2..51)...
+function runCleanVIDs() {
+  const __ACTIVESHEET = getPasteSheet();
+  const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, 3).getValues();
+  const __IDS = __IDCOL.map(info => [ safeVID(safeID(info[0], info[1], info[2], null)) ]);
+
+  return setVIDs(__ROW, __COL, __IDS);
+}
+
+// Main: Get IDs from first column and ChannelIDs from ninth column (row 2..51)
 // and get STATS and CHANNELS...
 function runYTdetails() {
   const __ACTIVESHEET = getPasteSheet();
   const __IDCOL = __ACTIVESHEET.getRange(__ROW, __VIDCOL, __MAX, 1).getValues();
-  const __IDS = __IDCOL.join(',');
+  const __IDS = __IDCOL.map(entry => safeVID(entry)).join(',');
   const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
   const __CHANNELIDS = __CHANNELIDCOL.join(',');  // Empty entries!
   const [ __INFO, __STATS ] = getInfoStats(__IDS);
@@ -76,9 +85,8 @@ function runYTdetails() {
   return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
-// Main: Get IDs from first column and ChannelIDs from eigth column (row 2..51)
-// and get STATS and CHANNELS...
-function runYTdetails() {
+// Main: Get ChannelIDs from ninth column (row 2..51) and get stats for CHANNELS...
+function runYTchannelDetails() {
   const __ACTIVESHEET = getPasteSheet();
   const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
   const __CHANNELIDS = __CHANNELIDCOL.join(',');  // Empty entries!
@@ -89,15 +97,14 @@ function runYTdetails() {
   return setYTdetailsData(__ROW, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
 }
 
-// Main: Get IDs from first column and ChannelIDs from 43th column (row 2..51)
-// and get STATS and CHANNELS...
+// Main: Get ChannelIDs from 55th column (row 2..51) and get stats for CHANNELS...
 function runYThandleDetails() {
   const __ACTIVESHEET = getPasteSheet();
   const __SINGLEROW = 1;
   const __SINGLECOL = 1;
   const __INFO = [];
   const __STATS = [];
-  let ret = false;
+  let ret = true;
   let handle;
 
   for (let row = __ROW; row < __ROW + __MAX; row++) {
@@ -107,7 +114,7 @@ function runYThandleDetails() {
     if (__CHANNELHANDLE && __CHANNELHANDLE.length) {  Logger.log({ Row: row.toFixed(0), Handle: __CHANNELHANDLE });
       const __CHANNELSTATS = getChannelStatsForHandle(__CHANNELPART, __CHANNELHANDLE, __SINGLEROW);
 
-      ret |= setYTdetailsData(row, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
+      ret &= setYTdetailsData(row, __COL, __CHANNELSCOL, __INFO, __STATS, __CHANNELSTATS);
     }
   }
 
@@ -134,19 +141,33 @@ function triggerYTall() {
   return (checkVidCol() && runYTall());
 }
 
+// Main: Run runCleanVIDs(), but only if you are changing a videoID (column 'A')!
+function triggerCleanVIDs() {
+  return (checkVidCol() && runCleanVIDs());
+}
+
 // Main: Run runYTdetailsAll(), but only if you are changing a videoID (column 'A')!
 function triggerYTdetailsAll() {
   return (checkVidCol() && runYTdetailsAll());
 }
 
-// Main: Run runYTchannelDetails(), but only if you are changing a channelID (column 'H')!
+// Main: Run runYTchannelDetails(), but only if you are changing a channelID (column 'I')!
 function triggerYTchannelDetails() {
-  return (checkChannelCol() && runYTdetails());
+  return (checkChannelCol() && runYTchannelDetails());
 }
 
-// Main: Run runYThandleDetails(), but only if you are changing a handle of a channel (column 'AQ')!
+// Main: Run runYThandleDetails(), but only if you are changing a handle of a channel (column 'BC')!
 function triggerYThandleDetails() {
   return (checkHandleCol() && runYThandleDetails());
+}
+
+function setVIDs(row, col, ids) {  Logger.log("Setting clean setVIDs()...");
+  const __ACTIVESHEET = getPasteSheet();
+  const __IDLEN = ((ids && ids.length) ? ids.length : 0);
+  const __IDWIDTH = ((ids && ids[0] && ids[0].length) ? ids[0].length : 0);
+  const __IDCOL = col;
+
+  return   __ACTIVESHEET.getRange(row, __IDCOL, __IDLEN, __IDWIDTH).setValues(ids);
 }
 
 function setYTsearchData(row, col, info, stats) {  Logger.log("Setting setYTsearchData() search data...");
@@ -275,7 +296,7 @@ function getChannelStatsEx(parts, params) {
 
   const __CHANNELIDS = (__PARAMS.id ? __PARAMS.id.split(',') : channelIDs);
 
-  for (channelID of __CHANNELIDS) {
+  for (let channelID of __CHANNELIDS) {
     if (channelID) {
       const __ENTRY = __CHANNELMAP[channelID];
 
@@ -304,7 +325,7 @@ function mapResult(item, parts) {
   const __LS = item.liveStreamingDetails;
   let data = [];
 
-  for (part of __PARTS) {
+  for (let part of __PARTS) {
     switch (part) {
       case 'id':          data = data.concat([ __IDS.videoId, __IDS.channelId, __IDS.playlistId, __IDS.kind, __ETAG ]);
                           break;
@@ -410,7 +431,7 @@ function mapChannelResult(item, parts) {
   const __BS = item.brandingSettings;
   let data = [];
 
-  for (part of __PARTS) {
+  for (let part of __PARTS) {
     switch (part) {
       case 'id':          data = data.concat([ __ID, __KIND, __ETAG ]);
                           break;
@@ -437,12 +458,28 @@ function mapChannelResult(item, parts) {
   return data;
 }
 
-function safeID(video, channel, playlist) {
+function safeID(video, channel, playlist, dflt = 'jNQXAC9IVRw') {  // ZOO Video
   if (video) return video;
   if (channel) return channel;
   if (playlist) return playlist;
 
-  return 'jNQXAC9IVRw';  // ZOO Video
+  return dflt;
+}
+
+function safeVID(url, dflt) {  // strips url to pure video-ID...
+  const __FULLURL = String(url);
+  const __PATTERNS = [ /^(\S{11})$/, /^https?:\/\/www\.youtube\.\S+\/watch\?v=(\S{11})(&\S+=\S+)*$/,
+                        /^https?:\/\/youtu\.be\/(\S{11})\/?(\?\S+=\S+)?(&\S+=\S+)*$/ ];
+
+  for (let pattern of __PATTERNS) {
+    if (pattern.test(__FULLURL)) {
+      const __URL = __FULLURL.replace(pattern, '$1');
+Logger.log(__FULLURL + " -> " + __URL)
+      return __URL;
+    }
+  }
+
+  return dflt;
 }
 
 function getActiveSheet() {
@@ -644,9 +681,21 @@ function testPT2time() {
                   'PT12S', 'PT15S', 'PT11M27S', 'PT38S', 'PT35S',  // 50 real life 'duration' values
                   '', null, 'null', 'P0D', 'P12DT4H36M54S' ];  // ... and some missing ones and a longer one from scratch
 
-  for (duration of __PTs)  {
+  for (let duration of __PTs)  {
     const __TIME = PT2time(duration);
 
     Logger.log(duration + " -> " + __TIME);
+  }
+}
+
+// Test: safeVID()...
+function testSafeVID() {
+  const __URLs = [ 'https://www.youtube.com/watch?v=95vBFa2tKsk', 'https://www.youtube.com/watch?v=TnIm1VkWx6Y&t=2s',
+                    'https://youtu.be/cCMZK59dfkg', 'http://youtu.be/cCMZK59dfkg?t=5s', '99zsH6iG_6c', 'yYEUGlFNBKc+' ];
+
+  for (let url of __URLs)  {
+    const __VID = safeVID(url);
+
+    Logger.log(url + " -> " + __VID);
   }
 }
