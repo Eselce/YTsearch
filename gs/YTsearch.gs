@@ -4,10 +4,10 @@ const __ROW = 2;
 const __COL = 1;
 const __PASTESHEETNAME = 'Paste';
 const __VIDCOL = __COL;
-const __CHANNELCOL = 8;
-const __STATSCOL = __CHANNELCOL + 12;  // 'T' See makeResult() and adapt to correct value!
-const __CHANNELSCOL = __STATSCOL + 30;  // 'AX' See makeResult() and adapt to correct value!
-const __HANDLECOL = __CHANNELSCOL + 2;  // 'AZ' See makeChannelResult() and adapt to correct value!
+const __CHANNELCOL = 9;
+const __STATSCOL = __CHANNELCOL + 10;  // 'S' See makeResult() and adapt to correct value!
+const __CHANNELSCOL = __STATSCOL + 33;  // 'AZ' See makeResult() and adapt to correct value!
+const __HANDLECOL = __CHANNELSCOL + 3;  // 'BC' See makeChannelResult() and adapt to correct value!
 const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
 const __SHOWITEM = !false;  // Do we need the raw package?
 const __SHORTDESC = true;  // Cut description fields in order to not break the layout?
@@ -243,7 +243,10 @@ function getChannelStatsEx(parts, params) {
 
 function mapResult(item, parts) {
   const __PARTS = (parts ? parts.split(',').map(part => part.trim()) : []);
-  const __ID = (((typeof item.id) === 'string') ? { videoId : item.id, kind: item.kind } : item.id);
+  const __KIND = item.kind;
+  const __ETAG = item.etag;
+  const __ID = item.id;
+  const __IDS = (((typeof item.id) === 'string') ? { videoId : __ID, kind: __KIND } : __ID);
   const __SN = item.snippet;
   const __FULLDESC = (__SN && __SN.description);
   const __DESC = ((__SHORTDESC && __FULLDESC && (__FULLDESC.length >= __DESCLEN - 1))
@@ -258,20 +261,23 @@ function mapResult(item, parts) {
 
   for (part of __PARTS) {
     switch (part) {
-      case 'id':          data = data.concat([ __ID.videoId, __ID.channelId, __ID.playlistId, __ID.kind ]);
+      case 'id':          data = data.concat([ __IDS.videoId, __IDS.channelId, __IDS.playlistId, __IDS.kind, __ETAG ]);
                           break;
       case 'snippet':     data = data.concat([ __SN.title, (__SHOWDESC && __DESC),
                                                 isoTime2de(__SN.publishedAt),
                                                 __SN.channelId, __SN.channelTitle,
                                                 __SN.liveBroadcastContent,  // 'upcoming', 'live', 'none'
-                                                __SN.categoryId, __SN.defaultAudioLanguage,  // These two are missing in 'Search'!
+                                                // These two (categoryId and defaultAudioLanguage) are missing in 'Search'! Later...
+                                                // category(__SN.categoryId), __SN.categoryId, __SN.defaultAudioLanguage,
                                                 isoTime2unix(__SN.publishedAt), isoTime2rel(__SN.publishedAt),
                                                 isoTime2de(__SN.publishTime), isoTime2unix(__SN.publishTime),
                                                 isoTime2rel(__SN.publishTime),  // See __SN.publishedAt!
                                                 (__SN.tags ? __SN.tags.join(", ") : '')
                                               ]);
                           break;
-      case 'contentDetails': data = data.concat([ __CD.definition, __CD.caption, __CD.projection,
+      case 'contentDetails': data = data.concat([ category(__SN.categoryId), __SN.categoryId, __SN.defaultAudioLanguage, // See "snippet"!
+                                                  // Now to the proper content details...
+                                                  __CD.definition, __CD.caption, __CD.projection,
                                                   __CD.licensedContent, __CD.dimension,
                                                   __CD.duration, PT2time(__CD.duration) ]);
                           break;
@@ -310,20 +316,21 @@ function mapResult(item, parts) {
                           const __PREMIEREWHEN = (__ISWAIT ? __DISPMINS(__MINS) :  '');
                           const __PREMIERE = (__ISOVER ? '' : "Premiere ") + (__ISLIVE ? "NOW " : __PREMIEREWHEN);
                           const __EXPREMIERE = (__ISDONE ? "Premiere " : '');  // Scheduled, but over now, so it __ISOVER
-                          const __URL = "https://youtu.be/" + __ID.videoId;
+                          const __URL = "https://youtu.be/" + __IDS.videoId;
                           const __START = (__TIME ? isoTime2rel(__TIME) : '');
                           const __END = (__ENDTIME ? isoTime2rel(__ENDTIME) : '');
                           const __DONE = (__ISDONE ? " DONE (" + __END + ')' : '');
                           const __DISCORD = (__ISOVER ? '[' + __EXPREMIERE + __START + "] "
                                                       : __PREMIERE + '(' + __START + "): ")
                                             + __URL + __DONE;
+                          const __CATEGORY = ' ' + category(__SN.categoryId);
                           const __CC = ((__CD && (__CD.caption.toLowerCase() === 'true')) ? "CC " : '');
                           const __LANG = (__SN.defaultAudioLanguage ? __SN.defaultAudioLanguage + ' ' : '');
                           const __VLEN = (__CD.duration === 'P0D') ? '' : PT2time(__CD.duration);  // 'P0D' ??? Strange!
                           const __VLENDISP = (__VLEN ? (__VLEN.startsWith("00:")
                                                         ? __VLEN.substring(3) : __VLEN) : 'live') + ' ';
                           const __DISCORDINFO = "\n[" + __VLENDISP + __CC + __LANG
-                                                      + __CD.definition + '(' + __CD.dimension + ")] "
+                                                      + __CD.definition + '(' + __CD.dimension + ')' + __CATEGORY + "] "
                                                       + __SN.channelTitle + '\n' + __SN.title;
                           const __DISCORDFULL = __DISCORD + __DISCORDINFO;
 
@@ -344,8 +351,9 @@ function mapResult(item, parts) {
 
 function mapChannelResult(item, parts) {
   const __PARTS = (parts ? parts.split(',').map(part => part.trim()) : []);
-  const __ID = item.id;
   const __KIND = item.kind;
+  const __ETAG = item.etag;
+  const __ID = item.id;
   const __SN = item.snippet;
   const __FULLDESC = (__SN && __SN.description);
   const __DESC = (__SHORTDESC && __FULLDESC && (__FULLDESC.length >= __DESCLEN - 1))
@@ -356,13 +364,14 @@ function mapChannelResult(item, parts) {
 
   for (part of __PARTS) {
     switch (part) {
-      case 'id':          data = data.concat([ __ID, __KIND ]);
+      case 'id':          data = data.concat([ __ID, __KIND, __ETAG ]);
                           break;
       case 'snippet':     data = data.concat([ __SN.customUrl, __SN.title, (__SHOWDESC && __DESC),
                                                 isoTime2de(__SN.publishedAt), isoTime2unix(__SN.publishedAt),
                                                 isoTime2rel(__SN.publishedAt), __SN.country ]);
                           break;
-      case 'statistics':  data = data.concat([ __SI.viewCount, __SI.subscriberCount, __SI.videoCount ]);
+      case 'statistics':  data = data.concat([ __SI.viewCount, __SI.subscriberCount, __SI.videoCount,
+                                                __SN.hiddenSubscriberCount ]);  // Just for the sake of completeness.
                           break;
       case 'brandingSettings': const __CH = (__BS ? __BS.channel : null);
                           data = data.concat([ __CH.title, (__SHOWDESC && __CH.description) ]);
@@ -433,6 +442,47 @@ function checkCol(col) {
   }
 
   return ret;
+}
+
+const __CATEGORYMAP = {
+    1:  'Film & Animation',
+    2:  'Autos & Vehicles',
+    10: 'Music',
+    15: 'Pets & Animals',
+    17: 'Sports',
+    18: 'Short Movies',
+    19: 'Travel & Events',
+    20: 'Gaming',
+    21: 'Videoblogging',
+    22: 'People & Blogs',
+    23: 'Comedy',
+    24: 'Entertainment',
+    25: 'News & Politics',
+    26: 'Howto & Style',
+    27: 'Education',
+    28: 'Science & Technology',
+    29: 'Nonprofits & Activism',
+    30: 'Movies',
+    31: 'Anime/Animation',
+    32: 'Action/Adventure',
+    33: 'Classics',
+    34: 'Comedy',
+    35: 'Documentary',
+    36: 'Drama',
+    37: 'Family',
+    38: 'Foreign',
+    39: 'Horror',
+    40: 'Sci-Fi/Fantasy',
+    41: 'Thriller',
+    42: 'Shorts',
+    43: 'Shows',
+    44: 'Trailers'
+  };
+
+function category(categoryID) {
+  const __CATNAME = __CATEGORYMAP[categoryID];
+
+  return (__CATNAME || '');
 }
 
 function PT2time(duration, timeFormat = true) {
