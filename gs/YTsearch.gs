@@ -9,7 +9,7 @@ const __STATSCOL = __CHANNELCOL + 9;  // 'Q' See makeResult() and adapt to corre
 const __CHANNELSCOL = __STATSCOL + 24;  // 'AO' See makeResult() and adapt to correct value!
 const __HANDLECOL = __CHANNELSCOL + 2;  // 'AQ' See makeChannelResult() and adapt to correct value!
 const __MAX = 50;  // Number of rows to be filled (0..50, default: 5), starting at row 2
-const __SHOWITEM = false;  // Do we need the raw package?
+const __SHOWITEM = !false;  // Do we need the raw package?
 const __SHORTDESC = true;  // Cut description fields in order to not break the layout?
 const __DESCLEN = (__SHORTDESC ? 50 : -1);  // Max length of description (only "snippet" for videos and channels)
 const __SHOWDESC = true;  // Do we need the description at all?
@@ -92,7 +92,7 @@ function runYTdetails() {
 function runYThandleDetails() {
   const __ACTIVESHEET = getPasteSheet();
   const __CELL = __ACTIVESHEET.getActiveCell();  // or getCurrentCell()?
-  const __ROW = __CELL.getRow();
+  const __ROW = __CELL.getRow();  Logger.log(__ROW); Logger.log(__CELL.getA1Notation());
   const __MAX = 1;
   const __CHANNELHANDLECOL = __ACTIVESHEET.getRange(__ROW, __HANDLECOL, __MAX, 1).getValues();
   const __CHANNELHANDLE = __CHANNELHANDLECOL.join(',');  // Empty entries!
@@ -206,7 +206,9 @@ function getChannelStatsForUsername(parts, username, max) {
   return getChannelStatsEx(parts, __PARAMS);
 }
 
-function getChannelStatsEx(parts, params) {  Logger.log({ id : params.id } ); Logger.log({ maxResults : params.maxResults } );
+function getChannelStatsEx(parts, params) {
+  // Logger.log({ id : params.id } ); Logger.log({ maxResults : params.maxResults } );
+  // Logger.log({ forHandle : params.forHandle } ); Logger.log({ forUsername : params.forUsername } );
   const __SELECT = parts;
   const __PARAMS = params;
   const __EXTRACT = __SELECT;
@@ -224,7 +226,7 @@ function getChannelStatsEx(parts, params) {  Logger.log({ id : params.id } ); Lo
                         __CHANNELMAP[__CHANNELID] = item;
   
                         return item;
-                      });  Logger.log(channelIDs.join(','));
+                      });  // Logger.log(channelIDs.join(','));
 
   const __CHANNELIDS = (__PARAMS.id ? __PARAMS.id.split(',') : channelIDs);
 
@@ -287,28 +289,33 @@ function mapResult(item, parts) {
                                                 (__LS && __LS.activeLiveChatId) ]);
 
                           // Paste string for Discord...
-                          const __PREMIERE = ((__SN.liveBroadcastContent === 'none') ? '' : "Premiere ")
-                                              + ((__SN.liveBroadcastContent === 'live') ? "NOW " : '') + '(';
-                          const __EXPREMIERE = ((__LS && __LS.scheduledStartTime
-                                                      && (__SN.liveBroadcastContent === 'none')) ? "Premiere " : '');
-                                                // This was scheduled, but it's over now and live... === 'none'
-                          const __MINS = (isoTime2unix(__LS && __LS.scheduledStartTime) - isoTime2unix()) / 60;
-                          const __WHEN = ((__SN.liveBroadcastContent === 'upcoming')
-                                                ? ((__MINS < 2) ? "NOW "
-                                                : ((__MINS < 66) ? __MINS + " minutes "
-                                                                  : (__MINS / 60).toFixed(1) + " hours "))
-                                                : '');
-                          const __DISCORD = ((__SN.liveBroadcastContent === 'none')
-                                                ? '[' + __EXPREMIERE + (__SN && isoTime2rel(__SN.publishedAt)) + "] "
-                                                : __PREMIERE + __WHEN
-                                                      + (__LS && isoTime2rel(__LS.scheduledStartTime)) + "): ")
-                                                      + "https://youtu.be/" + __ID.videoId
-                                                      + (__EXPREMIERE.length ? " DONE" : '');
+                          const __PUBLISHEDTIME = (__SN && __SN.publishedAt);
+                          const __SCHEDULEDTIME = (__LS && __LS.scheduledStartTime);
+                          const __ISOVER = (__SN.liveBroadcastContent === 'none');
+                          const __ISWAIT = (__SN.liveBroadcastContent === 'upcoming');
+                          const __ISLIVE = (__SN.liveBroadcastContent === 'live');
+                          const __ISDONE = (__ISOVER && __SCHEDULEDTIME);
+                          const __STARTTIME = (__ISWAIT ? __SCHEDULEDTIME : (__ISDONE && (__LS && __LS.actualStartTime)));
+                          const __ENDTIME = (__ISDONE && (__LS && __LS.actualEndTime));
+                          const __TIME = (__STARTTIME || __PUBLISHEDTIME);  // If premiere, take scheduled, else published!
+                          const __MINS = ((isoTime2unix(__SCHEDULEDTIME) - isoTime2unix()) / 60);  // __ISWAIT only!
+                          const __DISPMINS = (mins => ((mins < 2) ? "NOW " : "in " + ((mins < 66) ? mins + " minutes "
+                                                                                  : (mins / 60).toFixed(1) + " hours ")));
+                          const __PREMIEREWHEN = (__ISWAIT ? __DISPMINS(__MINS) :  '');
+                          const __PREMIERE = (__ISOVER ? '' : "Premiere ") + (__ISLIVE ? "NOW " : __PREMIEREWHEN);
+                          const __EXPREMIERE = (__ISDONE ? "Premiere " : '');  // Scheduled, but over now, so it __ISOVER
+                          const __URL = "https://youtu.be/" + __ID.videoId;
+                          const __START = (__TIME ? isoTime2rel(__TIME) : '');
+                          const __END = (__ENDTIME ? isoTime2rel(__ENDTIME) : '');
+                          const __DONE = (__ISDONE ? " DONE (" + __END + ')' : '');
+                          const __DISCORD = (__ISOVER ? '[' + __EXPREMIERE + __START + "] "
+                                                      : __PREMIERE + '(' + __START + "): ")
+                                            + __URL + __DONE;
                           const __CC = ((__CD && (__CD.caption.toLowerCase() === 'true')) ? "CC " : '');
                           const __LANG = (__SN.defaultAudioLanguage ? __SN.defaultAudioLanguage + ' ' : '');
-                          const __VLEN = PT2time(__CD.duration);
+                          const __VLEN = (__CD.duration === 'P0D') ? '' : PT2time(__CD.duration);  // 'P0D' ??? Strange!
                           const __VLENDISP = (__VLEN ? (__VLEN.startsWith("00:")
-                                                        ? __VLEN.substring(3) : __VLEN) + ' ' : 'live');
+                                                        ? __VLEN.substring(3) : __VLEN) : 'live') + ' ';
                           const __DISCORDINFO = "\n[" + __VLENDISP + __CC + __LANG
                                                       + __CD.definition + '(' + __CD.dimension + ")] "
                                                       + __SN.channelTitle + '\n' + __SN.title;
@@ -384,10 +391,14 @@ function getActiveSheet() {
 
 function getPasteSheet() {
   const __SPREADSHEET = SpreadsheetApp.getActiveSpreadsheet();
+  const __ACTIVESHEET = __SPREADSHEET.getActiveSheet();
+  const __CELL = __SPREADSHEET.getActiveCell();
   const __PASTESHEET = __SPREADSHEET.getSheetByName(__PASTESHEETNAME);
-  const __ACTIVESHEET = __PASTESHEET.activate();
+  const __ACTIVEPASTESHEET = __PASTESHEET.activate();
 
-  return __ACTIVESHEET;
+  __SPREADSHEET.setCurrentCell(__CELL);  // TODO: Restore position
+
+  return __ACTIVEPASTESHEET;
 }
 
 function checkVidCol() {
@@ -407,7 +418,8 @@ function checkCol(col) {
   const __SHEETNAME = __ACTIVESHEET.getSheetName();
   const __CELL = __ACTIVESHEET.getActiveCell();  // or getCurrentCell()?
   const __COL = __CELL.getColumn();
-  let ret = false;  Logger.log(__SHEETNAME); Logger.log(__CELL.getA1Notation());
+  let ret = false;
+  Logger.log(__SHEETNAME); Logger.log(__CELL.getA1Notation());
 
   // TODO: From Editor (not triggered), getSheetName() delivers 'Paste' and getColumn() the 'A1' cell! Always! Why?
   if (__COL === col) {
@@ -448,7 +460,7 @@ function PT2time(duration, timeFormat = true) {
 }
 
 function isoTime2unix(isoTime) {
-  const __DATE = new Date(isoTime);
+  const __DATE = (isoTime ? new Date(isoTime) : new Date());
 
   return Number((__DATE / 1000).toFixed(0));  // Convert ms to s
 }
@@ -465,7 +477,7 @@ function isoTime2rel(isoTime) {
 }
 
 function isoTime2de(isoTime) {
-  const __DATE = new Date(isoTime);
+  const __DATE = (isoTime ? new Date(isoTime) : new Date());
   const __LOCAL = __DATE.toLocaleString('de-DE', { timeZone: 'CET' });
 
   return __LOCAL;  // .replace(',', '');
@@ -526,7 +538,7 @@ function testPT2time() {
                   'PT8M46S', 'PT9M23S', 'PT14S', 'PT25S', 'PT6S', 'PT2H12M22S', 'PT1M', 'PT7M21S', 'PT5M33S',
                   'PT6M6S', 'PT19S', 'PT19S', 'PT13M5S', 'PT20S', 'PT24M30S', 'PT9M50S', 'PT17S', 'PT20M34S',
                   'PT12S', 'PT15S', 'PT11M27S', 'PT38S', 'PT35S',  // 50 real life 'duration' values
-                  '', null, 'null', 'P12DT4H36M54S' ];  // ... and some missing ones and a longer one from scratch
+                  '', null, 'null', 'P0D', 'P12DT4H36M54S' ];  // ... and some missing ones and a longer one from scratch
 
   for (duration of __PTs)  {
     const __TIME = PT2time(duration);
