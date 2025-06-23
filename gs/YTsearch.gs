@@ -158,7 +158,8 @@ function mapResult(item, part) {
                                                 isoTime2unix(__SN.publishedAt), isoTime2rel(__SN.publishedAt) ]);
                           break;
       case 'contentDetails': data = data.concat([ __CD.definition, __CD.caption, __CD.projection,
-                                                  __CD.licensedContent, __CD.dimension, __CD.duration ]);
+                                                  __CD.licensedContent, __CD.dimension,
+                                                  __CD.duration, PT2time(__CD.duration) ]);
                           break;
       case 'topicDetails': data = data.concat([ (__TC && __TC.join(" ")) ]);
                           break;
@@ -237,10 +238,40 @@ function getActiveSheet() {
   return __ACTIVESHEET;
 }
 
+function PT2time(duration, timeFormat = true) {
+  const __SECONDS = { 'S': 1, 'M': 60, 'H': 3600, 'D': 86400 };  // More units needed?
+  let secs = -1;
+
+  if (duration && duration.startsWith('P')) {
+    let s = duration.replace(/^P(.*)T(.*)/, '$1$2');
+
+    while (s) {
+      const __VAL = Number.parseInt(s, 10);
+      const __POS = __VAL.toFixed(0).length;
+      const __UNIT = s[__POS];
+      const __SECS = __SECONDS[__UNIT];
+
+      secs += __VAL * __SECS;
+      s = s.substring(__POS + 1);
+    }
+  }
+
+  if (timeFormat) {
+    const __DATE = new Date(secs * 1000);
+    const __TIME = Utilities.formatDate(__DATE, 'UTC', 'HH:mm:ss');
+  
+    s = __TIME;
+  } else {
+    s = secs;
+  }
+
+  return ((secs < 0) ? duration : s);
+}
+
 function isoTime2unix(isoTime) {
   const __DATE = new Date(isoTime);
 
-  return Number.parseInt((__DATE / 1000).toFixed(0));  // Convert ms to s
+  return Number((__DATE / 1000).toFixed(0));  // Convert ms to s
 }
 
 function isoTime2discord(isoTime, flag = 'R') {
@@ -267,8 +298,9 @@ function testMap() {
                       description: 'This is a reaction to the song "we are the Resurrection" performed by LOVEBITES live from Memorial for the Warrior\'s Soul.',
                       channelId: 'UCMRBbkpiK8JnDg9kTQdYPtA', channelTitle: 'vintage_sol',
                       title: 'LOVEBITES-We are the Resurrection OLV(1st time reaction)',
-                      publishTime: '2025-01-23T16:17:20Z' } };
-  const __RET = mapResult(__ITEM, __PART);
+                      publishTime: '2025-01-23T16:17:20Z',
+                      tags: [ 'Lovebites', 'Lovebites reaction video', 'Soldier Stands Solitarily Lovebites', 'Soldier Stands Solitarily song', 'reaction videos' ], defaultAudioLanguage: 'en-US', categoryId: '19', liveBroadcastContent: 'none' }, contentDetails: { licensedContent: false, contentRating: { },definition: 'hd', dimension: '2d', projection: 'rectangular', caption: 'false', duration: 'PT10M50S' }, topicDetails: { topicCategories: [ 'https://en.wikipedia.org/wiki/Music', 'https://en.wikipedia.org/wiki/Rock_music' ] }, status: { privacyStatus: 'public', publicStatsViewable: true, uploadStatus: 'processed', madeForKids: false, license: 'youtube', embeddable: true }, statistics: { viewCount: '500', likeCount: '130', commentCount: '19', favoriteCount: '0' }, liveStreamingDetails: { actualEndTime: '2025-01-24T22:12:07Z', actualStartTime: '2025-01-24T22:00:09Z', scheduledStartTime: '2025-01-24T22:00:00Z', activeLiveChatId: '[...]' } };  // Mixed a real life entry with a premiere schedule (no chat)
+  const __RET = mapResult(__ITEM, __STATSPART);
 
   Logger.log(__RET);
 }
@@ -291,4 +323,17 @@ function testIsoTime() {
 
   Logger.log({ time_rel: __TIMEREL });
   Logger.log({ now_rel: __NOWREL });
+}
+
+function testPT2time() {
+
+  const __PTs = [ 'PT1M29S', 'PT15M8S', 'PT9M8S', 'PT31M20S', 'PT11M55S', 'PT5M49S', 'PT25S', 'PT7M21S', 'PT6M25S',
+                  'PT7M52S', 'PT21S', 'PT10M42S', 'PT6M7S', 'PT23S', 'PT7M48S', 'PT13S', 'PT11S', 'PT15M8S', 'PT3M29S', 'PT11M59S', 'PT11S', 'PT19M24S', 'PT15S', 'PT17M48S', 'PT12M58S', 'PT11M59S', 'PT8M46S', 'PT9M23S', 'PT14S', 'PT25S', 'PT6S', 'PT2H12M22S', 'PT1M', 'PT7M21S', 'PT5M33S', 'PT6M6S', 'PT19S', 'PT19S', 'PT13M5S', 'PT20S', 'PT24M30S', 'PT9M50S', 'PT17S', 'PT20M34S', 'PT12S', 'PT15S', 'PT11M27S', 'PT38S', 'PT35S',  // 50 real life 'duration' values
+                  '', null, 'null', 'P12DT4H36M54S' ];  // ... and some missing ones and a longer one from scratch
+
+  for (duration of __PTs)  {
+    const __TIME = PT2time(duration);
+
+    Logger.log(duration + " -> " + __TIME);
+  }
 }
