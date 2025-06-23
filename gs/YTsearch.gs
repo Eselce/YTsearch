@@ -89,7 +89,7 @@ function runYTdetails() {
 function runYTchannelDetails() {
   const __ACTIVESHEET = getPasteSheet();
   const __CHANNELIDCOL = __ACTIVESHEET.getRange(__ROW, __CHANNELCOL, __MAX, 1).getValues();
-  const __CHANNELIDS = __CHANNELIDCOL.join(',');  // Empty entries!
+  const __CHANNELIDS = __CHANNELIDCOL.map(entry => safeChannelID(entry, 'UC')).join(',');  // Empty entries!
   const __INFO = [];
   const __STATS = [];
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
@@ -467,7 +467,7 @@ function safeID(video, channel, playlist, dflt = 'jNQXAC9IVRw') {  // ZOO Video
 }
 
 function safeVID(url, dflt) {  // strips url to pure video-ID...
-  const __FULLURL = String(url);
+  const __FULLURL = String(url).trim();
   const __PATTERNS = [ /^(\S{11})$/,
                         /^https?:\/\/www\.youtube\.\S+\/watch\?v=(\S{11})(&\S+=\S+)*$/,
                         /^https?:\/\/www\.youtube\.\S+\/shorts\/(\S{11})\/?((\?\S+=\S+)(&\S+=\S+)*)?$/,
@@ -476,9 +476,27 @@ function safeVID(url, dflt) {  // strips url to pure video-ID...
   for (let pattern of __PATTERNS) {
     if (pattern.test(__FULLURL)) {
       const __URL = __FULLURL.replace(pattern, '$1');
-Logger.log(__FULLURL + " -> " + __URL)
+      //Logger.log(__FULLURL + " -> " + __URL);
+
       return __URL;
     }
+  }
+
+  return dflt;
+}
+
+function safeChannelID(channelID, prefix = 'UC', dflt = null) {  // strips channelID to pure channel-ID...
+  const __ID = String(channelID).trim();
+  let id = __ID;
+
+  if (id && prefix && id.startsWith(prefix)) {
+    id = id.substring(prefix.length);
+  }
+
+  if (id && (id.length === 22)) {
+    //Logger.log(__ID + " -> " + id);
+
+    return (prefix + id);
   }
 
   return dflt;
@@ -698,11 +716,24 @@ function testPT2time() {
 function testSafeVID() {
   const __URLs = [ 'https://www.youtube.com/watch?v=95vBFa2tKsk', 'https://www.youtube.com/watch?v=TnIm1VkWx6Y&t=2s',
                     'https://youtu.be/cCMZK59dfkg', 'http://youtu.be/cCMZK59dfkg?t=5s', '99zsH6iG_6c', 'yYEUGlFNBKc+',
-                    'https://www.youtube.com/shorts/JL7ciGyRGpQ?t=2s', 'https://www.youtube.com/shorts/JL7ciGyRGpQ/' ];
+                    'https://www.youtube.com/shorts/JL7ciGyRGpQ?t=2s', ' https://www.youtube.com/shorts/JL7ciGyRGpQ/ ' ];
 
   for (let url of __URLs)  {
     const __VID = safeVID(url);
 
     Logger.log(url + " -> " + __VID);
+  }
+}
+
+// Test: safeChannelID()...
+function testSafeChannelID() {
+  const __IDs = [ 'UC_j-UIb9-xfQ0TpQZ1gU73A', ' UC_wufvzX3aCyXdrfolZuCBQ ', 'UC2eXdGwoXGwk9eKTnWxeCSQ ', ' 4RhhXZinswhdHhLmWQL7rA',
+                  '9f0JONUBVrWHaJF75jDwBA', 'Fn_q3syp4YrRtuHA-Ehi_A', 'l8rWlxwqaOdRFdL38Ezzew', 'r_wpkXp9lDwG0t35vs1Jvg',
+                  'sQ4R6ihKh2_-2Fc_vWzA7Q', 'uSOre3pUobWnlFxkSkHqsQ+', 'uSOre3pUobWnlFxkSkHqs' ];
+
+  for (let channelID of __IDs)  {
+    const __CHANNELID = safeChannelID(channelID, 'UC', "Successfully found error in channelID");
+
+    Logger.log(channelID + " -> " + __CHANNELID);
   }
 }
