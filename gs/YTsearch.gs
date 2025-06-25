@@ -662,13 +662,14 @@ function populateDataEx(table, row, col, data, items, config) {
   } 
 
   for (const [key, format] of Object.entries(__ITEMS)) {
-    const __ITEM = __DATA[key];
+    const __ITEMRAW = __DATA[key];
 
-    if (__ITEM && ! Array.isArray(__ITEM)) {
-      Logger.log("Error in populateDataEx(): __DATA[" + key + "] with keys (" + Object.keys(__ITEM) + ") is invalid!");
+    if (__ITEMRAW && ! Array.isArray(__ITEMRAW)) {
+      Logger.log("Error in populateDataEx(): __DATA[" + key + "] with keys (" + Object.keys(__ITEMRAW) + ") is invalid!");
 
       return false;
     } else if (format) {
+      const __ITEM = filterField(__ITEMRAW, globalFilter);
       const __ITEMROW = addCols(__STARTROW, (format.row || ((format.col === lastCol) ? nextRow : __TOPROW)));  // Top if not same col specified!
       const __ITEMCOL = addCols(__STARTCOL, (format.col || nextCol));
       const __ITEMLEN = (((__ITEM && __ITEM.length) ? __ITEM.length : format.len) || __SINGLEROW);
@@ -1240,6 +1241,38 @@ function safeChannelIDOld(channelID, dflt = null, prefix = __CHPREFIX) {  // str
   return dflt;
 }
 
+function safeUnmatchedQuotation(s) {
+  if ((typeof(s) === 'string') && s.startsWith('"')) {
+    Logger.log("Found unmatched quotation marks: " + s);
+
+    return '""' + s + '"';
+  }
+
+  return s;
+}
+
+function globalFilter(cell, col, line, row, field) {
+  const __ENTRY = cell;
+  const __NEWENTRY = safeUnmatchedQuotation(__ENTRY);
+  const __INDEX = col;
+  const __ARR = line;
+  const __ROWINDEX = row;
+  const __MATRIX = field;
+
+  //Logger.log({ 'Entry': __ENTRY, 'Row': __ROWINDEX, 'Col': __INDEX });
+
+  return __NEWENTRY;
+}
+
+function filterField(field, filter) {
+  const __FIELD = field;  // [ [ , , ... ], [ , , ... ], ... ]
+  const __FILTER = filter;
+  const __FILTERED = (__FILTER ? (__FIELD && __FIELD.map((row, rowIndex) => (row && row.map(
+                      (entry, index, arr) => __FILTER(entry, index, arr, rowIndex, __FIELD))))) : __FIELD);
+
+  return __FILTERED;
+}
+
 function getPasteSheet() {
   return setActiveSheet(__PASTESHEETNAME);
 }
@@ -1742,4 +1775,32 @@ function testGetListFromArr() {
   const __LIST5 = getListFromArr(__DATA);
 
   Logger.log(__LIST5);
+}
+
+// Test: globalFilter()... handling unmatched ""
+function testGlobalFilter() {
+  const __DATA = [].concat(['Normal text before',
+                            '"We have a critical text here with unmatched quotation marks!',
+                            'Normal text after']);
+  Logger.log({ 'Data': __DATA });
+  const __FILTERED = [ __DATA.map(globalFilter) ];
+  Logger.log({ 'Filtered': __FILTERED });
+  const __TABLE = __PASTESHEETNAME;
+  const __ROW = 3;
+  const __COL = 6;
+  const __TEMPLATE = {
+                        'table': __TABLE,
+                        'row': __ROW,
+                        'col': __COL,
+                        'max': __MAX,
+                        'fullCol': true,
+                        'items': {
+                                    'filtered': {
+                                              'col': 1,
+                                              'width': 3
+                                            }
+                                  }
+                     };
+
+  populateData({ 'filtered' : __FILTERED }, __TEMPLATE);
 }
