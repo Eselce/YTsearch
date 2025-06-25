@@ -189,7 +189,7 @@ function runCleanVIDs() {
                         'table': __PASTESHEETNAME,
                         'row': __ROW,
                         'col': __COL,
-                        'max': __MAX * 13,  // TODO: clean __MAX extension
+                        'max': __MAX * 15,  // TODO: clean __MAX extension
                         'fullCol': true,
                         'items': {
                                     'ids': {
