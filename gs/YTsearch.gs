@@ -189,7 +189,7 @@ function runCleanVIDs() {
                         'table': __PASTESHEETNAME,
                         'row': __ROW,
                         'col': __COL,
-                        'max': __MAX * 4,  // TODO: clean __MAX extension
+                        'max': __MAX * 6,  // TODO: clean __MAX extension
                         'fullCol': true,
                         'items': {
                                     'ids': {
@@ -1174,10 +1174,10 @@ function safeComboID(video, channel, playlist, dflt) {
 
 function safeVID(url, dflt = null, prefix = __VPREFIX) {  // strips url or VID to pure video-ID...
   const __PATTERNS = [  // /^([0-9A-Za-z_\-]{11})$/,  // This one is also done by the 4th of the other regExps!
-                        /^\s*https?:\/\/(?:www|m)\.youtube\.\S+\/watch\?v=([0-9A-Za-z_\-]{11})(?:&\S+=\S+)*(?:[\s\(][\s\w=\(\)]*)?$/,
-                        /^\s*https?:\/\/(?:www|m)\.youtube\.\S+\/shorts\/([0-9A-Za-z_\-]{11})\/?(?:(?:\?\S+=\S+)(?:&\S+=\S+)*)?(?:[\s\(][\s\w=\(\)]*)?$/,
-                        /^\s*https?:\/\/(?:www|m)\.youtube\.\S+\/live\/([0-9A-Za-z_\-]{11})\/?(?:(?:\?\S+=\S+)(?:&\S+=\S+)*)?(?:[\s\(][\s\w=\(\)]*)?$/,
-                        /^\s*https?:\/\/youtu\.be\/([0-9A-Za-z_\-]{11})\/?(?:(?:\?\S+=\S+)(?:&\S+=\S+)*)?(?:[\s\(][\s\w=\(\)]*)?$/,
+                        /^\s*https?:\/\/(?:www|m)\.youtube\.\S+\/watch\?v=([0-9A-Za-z_\-]{11})(?:&\S+=\S+)*(?:[\s,\(][\s\w,=\(\)]*)?$/,
+                        /^\s*https?:\/\/(?:www|m)\.youtube\.\S+\/shorts\/([0-9A-Za-z_\-]{11})\/?(?:(?:\?\S+=\S+)(?:&\S+=\S+)*)?(?:[\s,\(][\s\w,=\(\)]*)?$/,
+                        /^\s*https?:\/\/(?:www|m)\.youtube\.\S+\/live\/([0-9A-Za-z_\-]{11})\/?(?:(?:\?\S+=\S+)(?:&\S+=\S+)*)?(?:[\s,\(][\s\w,=\(\)]*)?$/,
+                        /^\s*https?:\/\/youtu\.be\/([0-9A-Za-z_\-]{11})\/?(?:(?:\?\S+=\S+)(?:&\S+=\S+)*)?(?:[\s,\(][\s\w,=\(\)]*)?$/,
                         /^(?:[0-9\s,]*,)?([0-9A-Za-z_\-]{11})(?:,[\w\s,./\-=?:]*)?$/,
                         /^\[.*\] https?:\/\/youtu\.be\/([0-9A-Za-z_\-]{11})\/?(?:(?:\?\S+=\S+)(?:&\S+=\S+)*)?(?: DONE \(.*\))?$/ ];
 
