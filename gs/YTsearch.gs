@@ -45,6 +45,7 @@ const __CONFIG = {
                   'col': {
                           'video': 1,     // 'B' See makeResult() and adapt to correct value!
                           'channel': 9,   // 'J' See makeResult() and adapt to correct value!
+                          'discord': 32,  // 'AX' See makeResult() and adapt to correct value!
                           'handle': 4,    // 'BD' See makeChannelResult() and adapt to correct value!
                           'last': 15      // 'BO' See makeChannelResult() and adapt to correct value!
                         }
@@ -92,6 +93,7 @@ const __INFOSCOL = 1 + __CONFIG.columns.len.align;  // 1-based
 const __VIDCOL = addCols(__INFOSCOL, __CONFIG.columns.col.video);
 const __CHANNELCOL = addCols(__INFOSCOL, __CONFIG.columns.col.channel);
 const __STATSCOL = __INFOSCOL + __CONFIG.columns.len.info;
+const __DISCORDCOL = addCols(__INFOSCOL, __CONFIG.columns.col.discord);
 const __CHANNELSCOL = __STATSCOL + __CONFIG.columns.len.stat;
 const __HANDLECOL = addCols(__CHANNELSCOL, __CONFIG.columns.col.handle);
 const __LASTCOL = addCols(__CHANNELSCOL, __CONFIG.columns.col.last);
@@ -198,7 +200,8 @@ function runCleanVIDs() {
                      };
 
   const __IDCOL = copyData(__TEMPLATE).ids;
-  const __IDS = getListFromArr(__IDCOL, (info => [ safeVID(safeComboID(info[0], info[1], info[2], null), __DEFAULTVIDEO) ]), null);
+  const __IDS = getListFromArr(__IDCOL, (info => [ safeVID(safeComboID(info[0], info[1], info[2], null) /*, __DEFAULTVIDEO*/) ]), null);
+  //Logger.log(__IDCOL); Logger.log(__IDS);
 
   __TEMPLATE.items.ids.width = __SINGLECOL;  // TODO: Really, really ugly!
 
@@ -333,10 +336,49 @@ function getColumn(row, col, itemCol, width, mapFun, join = ',') {
   return getListFromArr(__DATA, mapFun, join);
 }
 
+// Rearrange an array arr (subset) like the given filterIndex, where indexFun determines the index key in arr (default: id)...
+function getFilterArr(arr, filterIndex, indexFun, sorted) {
+  const __ARR = (arr || []);
+  const __INDEX = (filterIndex || []);
+  const __FILTER = (indexFun || (entry => entry.id));
+  const __ASCENDING = sorted;  // Optimize filtering for filterIndex sorted ascending in arr (subset)!
+  const __RET = [];
+  let pos = 0;
+  let count = 0;
+
+  //Logger.log(__ARR); Logger.log(__INDEX); Logger.log(__FILTER(__ARR[0]));
+
+  for (let index = 0, pos = 0; index < __ARR.length; index++, pos++) {
+    const __ENTRY = __ARR[index];
+    const __KEY = __FILTER(__ENTRY);
+
+    if (__ASCENDING) {  // filterIndex has the same order as arr...
+      while ((pos < __INDEX.length) && (__KEY !== __INDEX[pos])) {
+        pos++;
+      }
+
+      if (pos >= __INDEX.length) {  // Error: Not found!
+        break;
+      }
+    } else {  // unsorted, takes longer!
+      pos = __INDEX.findIndex(key => (key === __KEY));
+    }
+
+    count++;
+    __RET[pos] = __ENTRY;
+  }
+
+  if (count !== __ARR.length) {
+    Logger.log("Error in getFilterArr(): Could only find " + count + " of " + __ARR.length + " entries while filtering!");
+  }
+
+  return __RET;
+}
+
 function getListFromArr(arr, mapFun, join = ',') {
   const __DATA = (arr || []);
-  const __MAPPED = normal(__DATA, (data => data.map(mapFun, data)));
-  const __JOINED = normal(__MAPPED, (arr => arr.join(join)));
+  const __MAPPED = normal(__DATA, mapFun && (data => data.map(mapFun, data)));
+  const __JOINED = normal(__MAPPED, join && (arr => arr.join(join)));
 
   return __JOINED;
 }
@@ -685,15 +727,15 @@ function packDataParam(data, items) {
 function getSearchInfo(search) {
   const __SEARCH = (search || { });
 
-  return getYTlist('Search', __PART, __SEARCH, mapResult, __PART /*, 'id', __MAX*/);
+  return getYTlist('Search', __PART, __SEARCH, mapResult, __PART /*, 'id', null, __MAX*/);
 }
 
 function getStats(IDs) {
-  return getYTlist('Videos', __STATSPART, { 'id': IDs }, mapResult, __STATPART /*, 'id', __MAX*/);
+  return getYTlist('Videos', __STATSPART, { 'id': IDs }, mapResult, __STATPART, 'id', (entry => safeVID(entry[__DISCORDCOL - 1])) /*, __MAX*/);
 }
 
 function getInfoStats(IDs) {
-  return getYTlist('Videos', __STATSPART, { 'id': IDs }, mapResult, [ __PART, __STATPART ] /*, 'id', __MAX*/);
+  return getYTlist('Videos', __STATSPART, { 'id': IDs }, mapResult, [ __PART, __STATPART ] /*, 'id', null, __MAX*/);
 }
 
 function getChannelStats(parts, channelIDs, max) {
@@ -720,7 +762,7 @@ function getChannelStatsEx(parts, params) {
   const __SELECT = parts;
   const __PARAMS = params;
   const __EXTRACT = __SELECT;
-  const __CHANNELSTATS = getYTlist('Channels', __SELECT, __PARAMS, mapChannelResult, __EXTRACT /*, 'id', __MAX*/);
+  const __CHANNELSTATS = getYTlist('Channels', __SELECT, __PARAMS, mapChannelResult, __EXTRACT /*, 'id', null, __MAX*/);
   const __CHANNELMAP = { };
   let channelIDs = [];
   let channelStats = [];
@@ -733,7 +775,7 @@ function getChannelStatsEx(parts, params) {
                         __CHANNELMAP[__CHANNELID] = item;
   
                         return item;
-                      });  // Logger.log(channelIDs.join(','));
+                      });  // Logger.log(getListFromArr(channelIDs));
 
   const __CHANNELIDS = (__PARAMS.id ? __PARAMS.id.split(',') : channelIDs);
 
@@ -751,11 +793,11 @@ function getChannelStatsEx(parts, params) {
 function getPlaylistItems(PlaylistID) {  Logger.log("Starting PlaylistItem list()...");
   return getYTlist('PlaylistItems', __ITEMPART, {
                                                   'playlistId': PlaylistID  // 'playlistId' single ID, 'id' comma separated
-                                                }, mapPlaylistResult, __PLITEMPART /*, 'id', __MAX*/);
+                                                }, mapPlaylistResult, __PLITEMPART /*, 'id', null, __MAX*/);
 }
 
 // Multi purpose function for any list from YouTube, including multiple pages, with multiple post production via mapFun.
-function getYTlist(type, select, params, mapFun, extractOrArr, idKey, maxTotal, max) {
+function getYTlist(type, select, params, mapFun, extractOrArr, idKey, idFun, maxTotal, max) {
   const __TYPE = (type || 'Videos');
   const __FUN = YouTube[__TYPE].list;
   const __SELECT = (select || { });
@@ -767,6 +809,7 @@ function getYTlist(type, select, params, mapFun, extractOrArr, idKey, maxTotal, 
   const __IDS = __PARAMS[__IDKEY];
   const __IDARR = (__IDS && __IDS.split(','));
   const __IDPARTS = [];
+  const __FILTER = (idFun || (entry => entry[0]));
   const __MAXTOTAL = (maxTotal || Number.MAX_SAFE_INTEGER);
   const __MAXPACKET = (max || __MAX);
   const __IDCOUNT = (__IDARR ? __IDARR.length : __MAXPACKET);
@@ -776,19 +819,21 @@ function getYTlist(type, select, params, mapFun, extractOrArr, idKey, maxTotal, 
   let count = 0;
 
   Logger.log(__SELECT); Logger.log(__EXTRACT); Logger.log(restTotal);
+
   for (let i = 0; i < __EXTRACT.length; i++) {
     __RESULT[i] = [];
   }
 
   if (__IDARR) {
     for (let i = 0; i < __PARTCOUNT; i++) {
-      __IDPARTS[i] = __IDARR.slice(i * __MAXPACKET, (i + 1) * __MAXPACKET).join(',');
+      __IDPARTS[i] = getListFromArr(__IDARR.slice(i * __MAXPACKET, (i + 1) * __MAXPACKET));
     }
   } else {
     __IDPARTS[0] = __IDS;
   }
 
   for (let ids of __IDPARTS) {
+    const __INDEX = (ids && ids.split(','));
     let nextPageToken = (__PARAMS.pageToken || '');
 
     __PARAMS[__IDKEY] = ids;
@@ -808,6 +853,7 @@ function getYTlist(type, select, params, mapFun, extractOrArr, idKey, maxTotal, 
 
       for (let i = 0; i < __EXTRACT.length; i++) {
         const __ITEMS = (__RAWITEMS ? __RAWITEMS.map(item => __MAPFUN(item, __EXTRACT[i])) : []);
+        const __FILTERITEMS = getFilterArr(__ITEMS, __INDEX, __FILTER, true);
 
         __RESULT[i] = __RESULT[i].concat(__ITEMS);
       }
@@ -871,7 +917,7 @@ function getChannelStatsExOld(parts, params) {
                         __CHANNELMAP[__CHANNELID] = item;
   
                         return item;
-                      });  // Logger.log(channelIDs.join(','));
+                      });  // Logger.log(getListFromArr(channelIDs));
 
   const __CHANNELIDS = (__PARAMS.id ? __PARAMS.id.split(',') : channelIDs);
 
@@ -1131,7 +1177,8 @@ function safeVID(url, dflt = null, prefix = __VPREFIX) {  // strips url or VID t
                         /^\s*https?:\/\/www\.youtube\.\S+\/watch\?v=([0-9A-Za-z_\-]{11})(?:&\S+=\S+)*\s*$/,
                         /^\s*https?:\/\/www\.youtube\.\S+\/shorts\/([0-9A-Za-z_\-]{11})\/?(?:(\?\S+=\S+)(&\S+=\S+)*)?\s*$/,
                         /^\s*https?:\/\/youtu\.be\/([0-9A-Za-z_\-]{11})\/?(?:(\?\S+=\S+)(&\S+=\S+)*)?\s*$/,
-                        /^(?:[0-9\s,]*,)?([0-9A-Za-z_\-]{11})(?:,[\w\s,./\-=?:]*)?$/ ];
+                        /^(?:[0-9\s,]*,)?([0-9A-Za-z_\-]{11})(?:,[\w\s,./\-=?:]*)?$/,
+                        /^\[.*\] https?:\/\/youtu\.be\/([0-9A-Za-z_\-]{11})\/?(?:(\?\S+=\S+)(&\S+=\S+)*)?(?: DONE \(.*\))?$/ ];
 
   return safeID(url, dflt, __PATTERNS, prefix);
 }
@@ -1497,6 +1544,8 @@ function testPT2time() {
 function testSafeVID() {
   const __URLs = [ 'https://www.youtube.com/watch?v=95vBFa2tKsk', 'https://www.youtube.com/watch?v=TnIm1VkWx6Y&t=2s',
                     'https://youtu.be/cCMZK59dfkg', 'http://youtu.be/cCMZK59dfkg?t=5s', '99zsH6iG_6c', 'yYEUGlFNBKc+',
+                    '[<t:1401093073:R>] https://youtu.be/wS4gWQ0_pGE', '[<t:1685779205:R>] https://youtu.be/ENcTAyOp5j4',
+                    '[Premiere <t:1687619442:R>] https://youtu.be/h-E6gNN52y8 DONE (<t:1687619913:R>)',
                     'https://www.youtube.com/shorts/JL7ciGyRGpQ?t=2s', ' https://www.youtube.com/shorts/JL7ciGyRGpQ/ ' ];
 
   for (let url of __URLs)  {
@@ -1623,4 +1672,69 @@ function testSyncCell() {
   const __PLAYLIST = syncCell(6, __LEFTCOL, 'PLnnv1S968oGnUaSKvO3VdRojIZBJ7ZwDP', safePlaylistID);
 
   Logger.log("__PLAYLIST = " + __PLAYLIST);
+}
+
+// Test: normal()...
+function testNormal() {
+  const __DATA = [ 'a', 'b', 'c' ];
+  let join = ',';
+
+  const __NORMAL = normal(__DATA, join && (arr => arr.join(join)));
+
+  Logger.log(__NORMAL);
+
+  join = null;
+
+  const __IDLENORMAL = normal(__DATA, join && (arr => arr.join(join)));
+
+  Logger.log(__IDLENORMAL);
+}
+
+// Test: getFilterArr()...
+function testGetFilterArr() {
+  const __DATA = [ { id: 1, val: 'one' }, { id: 3, val: 'three' }, { id: 6, val: 'six' }];
+  const __INDEX = [ 0, 1, 2, 3, 4, 5, 6 ];
+  const __INDEX2 = [ 3, 6, 1 ];
+  const __INDEX3 = [ 'three', 'six', 'one' ];
+
+  const __ARR = getFilterArr(__DATA, __INDEX, null, true);
+
+  Logger.log(__ARR);
+
+  const __ARR2ERR = getFilterArr(__DATA, __INDEX2, null, true);
+
+  Logger.log(__ARR2ERR);
+
+  const __ARR2 = getFilterArr(__DATA, __INDEX2, null, false);
+
+  Logger.log(__ARR2);
+
+  const __ARR3 = getFilterArr(__DATA, __INDEX3, (entry => entry.val), false);
+
+  Logger.log(__ARR3);
+}
+
+// Test: getListFromArr()...
+function testGetListFromArr() {
+  const __DATA = [ 'a', 'b', 'c' ];
+
+  const __LIST = getListFromArr(__DATA, (entry => (entry + entry)), ' ');
+
+  Logger.log(__LIST);
+
+  const __LIST2 = getListFromArr(__DATA, (entry => (entry + entry)), null);
+
+  Logger.log(__LIST2);
+
+  const __LIST3 = getListFromArr(__DATA, null, " | ");
+
+  Logger.log(__LIST3);
+
+  const __LIST4 = getListFromArr(__DATA, null, null);
+
+  Logger.log(__LIST4);
+
+  const __LIST5 = getListFromArr(__DATA);
+
+  Logger.log(__LIST5);
 }
