@@ -189,7 +189,7 @@ function runCleanVIDs() {
                         'table': __PASTESHEETNAME,
                         'row': __ROW,
                         'col': __COL,
-                        'max': __MAX * 6,  // TODO: clean __MAX extension
+                        'max': __MAX * 13,  // TODO: clean __MAX extension
                         'fullCol': true,
                         'items': {
                                     'ids': {
@@ -1208,7 +1208,7 @@ function safePlaylistItemID(url, dflt = null, prefix = __ITPREFIX) {  // strips 
 }
 
 function safeID(url, dflt = null, patterns = null, prefix = __ITPREFIX) {  // strips ID to pure ID according to the patterns...
-  const __FULLURL = String(url).trim();
+  const __FULLURL = String(url).split("\n")[0].trim();  // only one line (multi-line makes it complicated)
   const __PATTERNS = (patterns || [ /^(?:[0-9\s,]*,)?([0-9A-Za-z_\-]+)(?:,[\w\s,./\-=?:]*)?$/ ]);
 
   for (let pattern of __PATTERNS) {
