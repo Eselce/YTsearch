@@ -1176,6 +1176,7 @@ function safeVID(url, dflt = null, prefix = __VPREFIX) {  // strips url or VID t
   const __PATTERNS = [  // /^([0-9A-Za-z_\-]{11})$/,  // This one is also done by the 4th of the other regExps!
                         /^\s*https?:\/\/www\.youtube\.\S+\/watch\?v=([0-9A-Za-z_\-]{11})(?:&\S+=\S+)*\s*$/,
                         /^\s*https?:\/\/www\.youtube\.\S+\/shorts\/([0-9A-Za-z_\-]{11})\/?(?:(\?\S+=\S+)(&\S+=\S+)*)?\s*$/,
+                        /^\s*https?:\/\/www\.youtube\.\S+\/live\/([0-9A-Za-z_\-]{11})\/?(?:(\?\S+=\S+)(&\S+=\S+)*)?\s*$/,
                         /^\s*https?:\/\/youtu\.be\/([0-9A-Za-z_\-]{11})\/?(?:(\?\S+=\S+)(&\S+=\S+)*)?\s*$/,
                         /^(?:[0-9\s,]*,)?([0-9A-Za-z_\-]{11})(?:,[\w\s,./\-=?:]*)?$/,
                         /^\[.*\] https?:\/\/youtu\.be\/([0-9A-Za-z_\-]{11})\/?(?:(\?\S+=\S+)(&\S+=\S+)*)?(?: DONE \(.*\))?$/ ];
@@ -1546,7 +1547,8 @@ function testSafeVID() {
                     'https://youtu.be/cCMZK59dfkg', 'http://youtu.be/cCMZK59dfkg?t=5s', '99zsH6iG_6c', 'yYEUGlFNBKc+',
                     '[<t:1401093073:R>] https://youtu.be/wS4gWQ0_pGE', '[<t:1685779205:R>] https://youtu.be/ENcTAyOp5j4',
                     '[Premiere <t:1687619442:R>] https://youtu.be/h-E6gNN52y8 DONE (<t:1687619913:R>)',
-                    'https://www.youtube.com/shorts/JL7ciGyRGpQ?t=2s', ' https://www.youtube.com/shorts/JL7ciGyRGpQ/ ' ];
+                    'https://www.youtube.com/shorts/JL7ciGyRGpQ?t=2s', ' https://www.youtube.com/shorts/JL7ciGyRGpQ/ ',
+                    ' https://www.youtube.com/live/JKk7vvr_nss?si=d6gSzTwRioozDsVx ' ];
 
   for (let url of __URLs)  {
     const __VID = safeVID(url);
