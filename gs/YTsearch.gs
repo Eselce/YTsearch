@@ -267,7 +267,7 @@ function runYTplaylist() {
   const __PLAYLISTID = syncCell(6, 1, __DEFAULTPLAYLIST, safePlaylistID);
   const __INFO = getPlaylistItems(__PLAYLISTID);
   const __IDS = getListFromArr(__INFO, (info => safeVID(info[0])));
-  const __STATS = getStats(__IDS);
+  const __STATS = null;  // getStats(__IDS);
 
   return setYTsearchData(__ROW, __COL, __INFO, __STATS);
 }
