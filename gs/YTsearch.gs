@@ -151,8 +151,8 @@ const __PLITEMPART = __PART + ", " + __ITEMPART;
 // Main: Search and get STATS and CHANNELS...
 function runYTall() {  Logger.log("Starting runYTall() search..."); Logger.log(__SEARCH);
   const __INFO = getSearchInfo(__SEARCH);
-  const __IDS = getList(__INFO, (info => safeVID(safeComboID(info[0], info[1], info[2]))));
-  const __CHANNELIDS = getList(__INFO, (info => info[__CHANNELCOL - 1]));
+  const __IDS = getListFromArr(__INFO, (info => safeVID(safeComboID(info[0], info[1], info[2]))));
+  const __CHANNELIDS = getListFromArr(__INFO, (info => info[__CHANNELCOL - 1]));
   const __STATS = getStats(__IDS);
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
 
@@ -166,7 +166,7 @@ function runYTdetailsAll() {
   //const __IDS = __IDCOL.map(entry => safeVID(entry)).join(',');
   const __IDS = getColumn(__ROW, __COL, __VIDCOL, __SINGLECOL, (entry => safeVID(entry)));
   const [ __INFO, __STATS ] = getInfoStats(__IDS);
-  const __CHANNELIDS = getList(__INFO, (info => info[__CHANNELCOL - 1]));
+  const __CHANNELIDS = getListFromArr(__INFO, (info => info[__CHANNELCOL - 1]));
   const __CHANNELSTATS = getChannelStats(__CHANNELPART, __CHANNELIDS, __MAX);
 
   return setYTdetailsData(__ROW, __COL, __STATSCOL, __INFO, __STATS, __CHANNELSTATS);
@@ -175,7 +175,7 @@ function runYTdetailsAll() {
 // Main: Search and get rudimantal INFO and STATS of those vides in 50 rows (row 2..51)...
 function runYTsearch() {
   const __INFO = getSearchInfo(__SEARCH);
-  const __IDS = getList(__INFO, (info => safeVID(safeComboID(info[0], info[1], info[2]))));
+  const __IDS = getListFromArr(__INFO, (info => safeVID(safeComboID(info[0], info[1], info[2]))));
   const __STATS = getStats(__IDS);
 
   return setYTsearchData(__ROW, __COL, __INFO, __STATS);
@@ -198,7 +198,7 @@ function runCleanVIDs() {
                      };
 
   const __IDCOL = copyData(__TEMPLATE).ids;
-  const __IDS = getList(__IDCOL, (info => [ safeVID(safeComboID(info[0], info[1], info[2], null), __DEFAULTVIDEO) ]), null);
+  const __IDS = getListFromArr(__IDCOL, (info => [ safeVID(safeComboID(info[0], info[1], info[2], null), __DEFAULTVIDEO) ]), null);
 
   __TEMPLATE.items.ids.width = __SINGLECOL;  // TODO: Really, really ugly!
 
@@ -263,7 +263,7 @@ function runYThandleDetails() {
 function runYTplaylist() {
   const __PLAYLISTID = syncCell(6, 1, __DEFAULTPLAYLIST, safePlaylistID);
   const __INFO = getPlaylistItems(__PLAYLISTID);
-  const __IDS = getList(__INFO, (info => safeVID(info[0])));
+  const __IDS = getListFromArr(__INFO, (info => safeVID(info[0])));
   const __STATS = getStats(__IDS);
 
   return setYTsearchData(__ROW, __COL, __INFO, __STATS);
@@ -330,10 +330,10 @@ function getColumn(row, col, itemCol, width, mapFun, join = ',') {
                      };
   const __DATA = copyData(__TEMPLATE).data;
 
-  return getList(__DATA, mapFun, join);
+  return getListFromArr(__DATA, mapFun, join);
 }
 
-function getList(arr, mapFun, join = ',') {
+function getListFromArr(arr, mapFun, join = ',') {
   const __DATA = (arr || []);
   const __MAPPED = normal(__DATA, (data => data.map(mapFun, data)));
   const __JOINED = normal(__MAPPED, (arr => arr.join(join)));
@@ -616,11 +616,7 @@ function populateDataEx(table, row, col, data, items, config) {
   Logger.log({ 'items': __ITEMS, 'data':  (__DATA ? __KEYS : __DATA) });
 
   for (key of __KEYS) {
-    const __ITEM = __DATA[key];
-    const __LEN = (__ITEM ? __ITEM.length : null);
-    const __WIDTH = (__LEN ?  __ITEM[0].length : (__ITEM ? 0 : null));
-
-    Logger.log("data[" + key + "] size = " + tupel(__LEN, __WIDTH));
+    Logger.log("data[" + key + "] size = " + sizeTupel(__DATA[key]));
   } 
 
   for (const [key, format] of Object.entries(__ITEMS)) {
@@ -688,32 +684,16 @@ function packDataParam(data, items) {
 
 function getSearchInfo(search) {
   const __SEARCH = (search || { });
-  const __SELECT = __PART;
-  const __EXTRACT = __SELECT;
-  const __LIST = YouTube.Search.list(__SELECT, __SEARCH);
-  const __RET = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
 
-  return __RET;
+  return getYTlist('Search', __PART, __SEARCH, mapResult, __PART /*, 'id', __MAX*/);
 }
 
 function getStats(IDs) {
-  const __SELECT = __STATSPART;
-  const __EXTRACT = __STATPART;
-  const __LIST = YouTube.Videos.list(__SELECT, { 'id': IDs });
-  const __STATS = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
-
-  return __STATS;
+  return getYTlist('Videos', __STATSPART, { 'id': IDs }, mapResult, __STATPART /*, 'id', __MAX*/);
 }
 
 function getInfoStats(IDs) {
-  const __SELECT = __STATSPART;
-  const __EXTRACT = __STATPART;
-  const __EXTRACTINFO = __PART;
-  const __LIST = YouTube.Videos.list(__SELECT, { 'id': IDs });
-  const __INFO = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACTINFO)) : []);
-  const __STATS = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
-
-  return [ __INFO, __STATS ];
+  return getYTlist('Videos', __STATSPART, { 'id': IDs }, mapResult, [ __PART, __STATPART ] /*, 'id', __MAX*/);
 }
 
 function getChannelStats(parts, channelIDs, max) {
@@ -735,6 +715,143 @@ function getChannelStatsForUsername(parts, username, max) {
 }
 
 function getChannelStatsEx(parts, params) {
+  // Logger.log({ id : params.id } ); Logger.log({ maxResults : params.maxResults } );
+  // Logger.log({ forHandle : params.forHandle } ); Logger.log({ forUsername : params.forUsername } );
+  const __SELECT = parts;
+  const __PARAMS = params;
+  const __EXTRACT = __SELECT;
+  const __CHANNELSTATS = getYTlist('Channels', __SELECT, __PARAMS, mapChannelResult, __EXTRACT /*, 'id', __MAX*/);
+  const __CHANNELMAP = { };
+  let channelIDs = [];
+  let channelStats = [];
+  let count = 0;
+
+  __CHANNELSTATS.map(function(item) {
+                        const __CHANNELID = item[0];
+
+                        channelIDs[count++] = __CHANNELID;
+                        __CHANNELMAP[__CHANNELID] = item;
+  
+                        return item;
+                      });  // Logger.log(channelIDs.join(','));
+
+  const __CHANNELIDS = (__PARAMS.id ? __PARAMS.id.split(',') : channelIDs);
+
+  for (let channelID of __CHANNELIDS) {
+    if (channelID) {
+      const __ENTRY = __CHANNELMAP[channelID];
+
+      channelStats = channelStats.concat([ __ENTRY ]);
+    }
+  }
+
+  return channelStats;
+}
+
+function getPlaylistItems(PlaylistID) {  Logger.log("Starting PlaylistItem list()...");
+  return getYTlist('PlaylistItems', __ITEMPART, {
+                                                  'playlistId': PlaylistID  // 'playlistId' single ID, 'id' comma separated
+                                                }, mapPlaylistResult, __PLITEMPART /*, 'id', __MAX*/);
+}
+
+// Multi purpose function for any list from YouTube, including multiple pages, with multiple post production via mapFun.
+function getYTlist(type, select, params, mapFun, extractOrArr, idKey, maxTotal, max) {
+  const __TYPE = (type || 'Videos');
+  const __FUN = YouTube[__TYPE].list;
+  const __SELECT = (select || { });
+  const __PARAMS = (Object.assign(params) || { });  // We want to change the object content!
+  const __MULTI = Array.isArray(extractOrArr);
+  const __EXTRACT = (__MULTI ? extractOrArr : [ extractOrArr ]);
+  const __MAPFUN = (mapFun || ((item, extract) => item));
+  const __IDKEY = (idKey || 'id');
+  const __IDS = __PARAMS[__IDKEY];
+  const __IDARR = (__IDS && __IDS.split(','));
+  const __IDPARTS = [];
+  const __MAXTOTAL = (maxTotal || Number.MAX_SAFE_INTEGER);
+  const __MAXPACKET = (max || __MAX);
+  const __IDCOUNT = (__IDARR ? __IDARR.length : __MAXPACKET);
+  const __PARTCOUNT = (__IDCOUNT - 1) / __MAXPACKET;  // Decimal number, integer only for first id on page!
+  const __RESULT = [];
+  let restTotal = __MAXTOTAL;
+  let count = 0;
+
+  Logger.log(__SELECT); Logger.log(__EXTRACT); Logger.log(restTotal);
+  for (let i = 0; i < __EXTRACT.length; i++) {
+    __RESULT[i] = [];
+  }
+
+  if (__IDARR) {
+    for (let i = 0; i < __PARTCOUNT; i++) {
+      __IDPARTS[i] = __IDARR.slice(i * __MAXPACKET, (i + 1) * __MAXPACKET).join(',');
+    }
+  } else {
+    __IDPARTS[0] = __IDS;
+  }
+
+  for (let ids of __IDPARTS) {
+    let nextPageToken = (__PARAMS.pageToken || '');
+
+    __PARAMS[__IDKEY] = ids;
+
+    while ((nextPageToken != null) && (restTotal > count)) {
+      const __PACKETMAX = Math.min(restTotal, __MAXPACKET);
+    
+      __PARAMS.pageToken = nextPageToken;
+      __PARAMS.maxResults = __PACKETMAX;
+
+      Logger.log(__PARAMS); Logger.log((count + 1) + " - " + (count + __PACKETMAX));
+
+      const __RESPONSE = __FUN(__SELECT, __PARAMS);
+      const __RAWITEMS = (__RESPONSE && __RESPONSE.items);
+
+      Logger.log("Got " + __TYPE + " results, len = " + (__RESPONSE && __RESPONSE.items && __RESPONSE.items.length));
+
+      for (let i = 0; i < __EXTRACT.length; i++) {
+        const __ITEMS = (__RAWITEMS ? __RAWITEMS.map(item => __MAPFUN(item, __EXTRACT[i])) : []);
+
+        __RESULT[i] = __RESULT[i].concat(__ITEMS);
+      }
+    
+      nextPageToken = __RESPONSE.nextPageToken;
+      count += __MAXPACKET;
+      restTotal -= __MAXPACKET;  // or actual length!
+    }
+  }
+
+  return (__MULTI ? __RESULT : __RESULT[0]);
+}
+
+function getSearchInfoOld(search) {
+  const __SEARCH = (search || { });
+  const __SELECT = __PART;
+  const __EXTRACT = __SELECT;
+  const __LIST = YouTube.Search.list(__SELECT, __SEARCH);
+  const __RET = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
+
+  return __RET;
+}
+
+function getStatsOld(IDs) {
+  const __SELECT = __STATSPART;
+  const __EXTRACT = __STATPART;
+  const __LIST = YouTube.Videos.list(__SELECT, { 'id': IDs });
+  const __STATS = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
+
+  return __STATS;
+}
+
+function getInfoStatsOld(IDs) {
+  const __SELECT = __STATSPART;
+  const __EXTRACT = __STATPART;
+  const __EXTRACTINFO = __PART;
+  const __LIST = YouTube.Videos.list(__SELECT, { 'id': IDs });
+  const __INFO = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACTINFO)) : []);
+  const __STATS = (__LIST.items ? __LIST.items.map(item => mapResult(item, __EXTRACT)) : []);
+
+  return [ __INFO, __STATS ];
+}
+
+function getChannelStatsExOld(parts, params) {
   // Logger.log({ id : params.id } ); Logger.log({ maxResults : params.maxResults } );
   // Logger.log({ forHandle : params.forHandle } ); Logger.log({ forUsername : params.forUsername } );
   const __SELECT = parts;
@@ -769,7 +886,7 @@ function getChannelStatsEx(parts, params) {
   return channelStats;
 }
 
-function getPlaylistItems(PlaylistID) {  Logger.log("Starting PlaylistItem list()...");
+function getPlaylistItemsOld(PlaylistID) {  Logger.log("Starting PlaylistItem list()...");
   const __SELECT = __ITEMPART;  // __LISTPART, __PINFPART
   const __EXTRACT = __PLITEMPART;  // __PLLISTPART, __INFOPART
   Logger.log(PlaylistID); Logger.log(__SELECT); Logger.log(__EXTRACT);
@@ -969,7 +1086,7 @@ function mapPlaylistResult(item, parts) {
                           break;
       case 'pageInfo':    //data = data.concat([ __PI.totalResults, __PI.resultsPerPage ]);
                           break;
-      case 'items':       //data = data.concat([ getList(__IT, (item => String(item))) ]);
+      case 'items':       //data = data.concat([ getListFromArr(__IT, (item => String(item))) ]);
                           break;
       case 'contentDetails': data = data.concat([ // First the delayed data that is not available in 'Search':
                                                   //(__SN.tags ? __SN.tags.join(", ") : ''),
@@ -1241,6 +1358,14 @@ function addRows(start, offset) {
 function addCols(start, offset) {
   // Columns are 1-based, so by adding an offset to a base, 1 is lost...
   return (start + offset - 1);
+}
+
+function sizeTupel(data) {
+  const __ITEM = data;
+  const __LEN = ((__ITEM && Array.isArray(__ITEM)) ? __ITEM.length : null);
+  const __WIDTH = (__LEN ? __ITEM[0].length : (Array.isArray(__ITEM) ? 0 : __ITEM));
+
+  return tupel(__LEN, __WIDTH);
 }
 
 function posRange(row, col, len = __SINGLEROW, width = __SINGLECOL, table = null, delims = __DEFDELIMS) {
