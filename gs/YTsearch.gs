@@ -1410,7 +1410,7 @@ function addCols(start, offset) {
 function sizeTupel(data) {
   const __ITEM = data;
   const __LEN = ((__ITEM && Array.isArray(__ITEM)) ? __ITEM.length : null);
-  const __WIDTH = (__LEN ? __ITEM[0].length : (Array.isArray(__ITEM) ? 0 : __ITEM));
+  const __WIDTH = (__LEN ? (__ITEM[0] && __ITEM[0].length) : (Array.isArray(__ITEM) ? 0 : __ITEM));
 
   return tupel(__LEN, __WIDTH);
 }
