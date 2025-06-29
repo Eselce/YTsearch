@@ -1242,10 +1242,21 @@ function safeChannelIDOld(channelID, dflt = null, prefix = __CHPREFIX) {  // str
 }
 
 function safeUnmatchedQuotation(s) {
-  if ((typeof(s) === 'string') && s.startsWith('"')) {
-    Logger.log("Found unmatched quotation marks: " + s);
+  if (typeof(s) === 'string') {
+    const __FRONT = s.startsWith('"');
+    const __END = s.endsWith('"');
 
-    return '""' + s + '"';
+    if (__FRONT) {
+      if (__END) {
+        Logger.log("Guarding matched quotation marks: " + s);
+
+        return '""' + s + '""';  // "___" --> """___"""
+      } else {
+        Logger.log("Found unmatched quotation marks: " + s);
+
+        return '""' + s + '"';  // "___ --> """___"
+      }
+    }
   }
 
   return s;
@@ -1607,7 +1618,7 @@ function testSafeChannelID() {
 }
 
 // Test: safePlaylistlID()...
-function testSafePlaylist() {
+function testSafePlaylistID() {
   const __IDs = [ 'PLnnv1S968oGnUaSKvO3VdRojIZBJ7ZwDP ', ' PLSFgYQhUDHRj8eKSoe-25VwbwPoYhsmze',
                   'https://www.youtube.com/watch?v=Zx9KPfvMVjY&list=PLnnv1S968oGnUaSKvO3VdRojIZBJ7ZwDP&index=1&t=2s',
                   'PLnnv1S968oGnUaSKvO3VdRojIZBJ7ZwDP+', 'PLnnv1S968oGnUaSKvO3VdRojIZBJ7ZwD' ];
@@ -1620,7 +1631,7 @@ function testSafePlaylist() {
 }
 
 // Test: safePlaylistlItemID()...
-function testSafePlaylistItem() {
+function testSafePlaylistItemID() {
   const __IDs = [ 'UExTRmdZUWhVREhSajhlS1NvZS0yNVZ3YndQb1loc216ZS41Mzk2QTAxMTkzNDk4MDhF',
                   ' xTRmdZUWhVREhSajhlS1NvZS0yNVZ3YndQb1loc216ZS4zMDg5MkQ5MEVDMEM1NTg2 ',
                   'xTRmdZUWhVREhSajhlS1NvZS0yNVZ3YndQb1loc216ZS45ODRDNTg0QjA4NkFBNkQy',
