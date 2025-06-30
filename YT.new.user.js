@@ -49,6 +49,8 @@ const __OPTCONFIG = {
                                   "Midori",
                                   "Haru(na|pi)",
                                   "Miho",
+                                  "\u30E9\u30D6\u30D0\u30A4\u30C4",  // ラブバイツ
+                                  "Rabubaitsu",
                                   "Wolf.?pack",
                                   "DESTROSE",
                                   "21g",
@@ -254,6 +256,10 @@ function findParentTag(element, tagName = 'A') {
     return elem;
 }
 
+function findParentAnchorMap(element) {
+    return findParentAnchor(element);  // Only one parameter, no index or arr!
+}
+
 function findParentAnchor(element) {
     return findParentTag(element, 'A');
 }
@@ -324,18 +330,18 @@ async function initIDs(optSet = __MAIN.optSet, cleanUp = false) {
         const __VALUE = (value || __FLAG_N);
         const __CLEANURL = cleanURL(__VALUE);
 
-        __LOG[1]("initIDs()", key, '=', value);
+        //__LOG[1]("initIDs()", key, '=', value);
 
         __DYNVIDS[key] = ((__CLEANUP && __CLEANURL) ? __CLEANURL : __VALUE);
     }
 
     __LOG[0]("initIDs():", "Data initialized!", __DYNVIDS);
 
-    //await acceptURL("https://www.youtube.com/watch?v=w3i505oOOjI");
-    //await acceptURL("https://www.youtube.com/watch?v=flIyW7NiKUs");
-    //await acceptURL("https://www.youtube.com/watch?v=-MTvsKdt8P0");
+    //await acceptURL("https://youtu.be/7KZlmuiFH_w?t=143s");
+    //await acceptURL("https://www.youtube.com/shorts/BG3fvrUcqwY");
+    //await acceptURL("https://www.youtube.com/watch?v=NU5K_8JVyu8");
     //await acceptURL("https://www.youtube.com/watch?v=AlwcqI2Vpec");
-    //await rejectURL("https://www.youtube.com/shorts/vhaDlfvpXqw");
+    //await rejectURL("https://www.youtube.com/watch?v=MwkfhhiLQA0");
     //await rejectURL("https://www.youtube.com/shorts/13FG40ISI9s");
     //await rejectURL("https://www.youtube.com/shorts/OJ-R6_pDGaY");
     //await deleteURL("https://www.youtube.com/watch?v=c9ZqoqCPyd0&list=PLghYzmkF89GlIUtG0vYqyludt0ZQYUTxj&index=1&pp=iAQB8AUB");
@@ -538,14 +544,14 @@ function matchSearch(title) {
     //return __TITLE.match(__SEARCHPATTERN);
 }
 
-function getYTinfo(anchor) {
+function getYTinfo(anchor, href) {
     if (! anchor) {
         return anchor;
     }
 
     const __ANCHOR = anchor;
     const __ANCHORDOWN = walkDownTags(__ANCHOR, "H3 SPAN");
-    const __HREF = (__ANCHOR && __ANCHOR.href);
+    const __HREF = (href || (__ANCHOR && __ANCHOR.href));
     const __VID = safeVID(__HREF);
     const __TEXTRAW = (__ANCHOR && __ANCHOR.textContent);
     const __TEXT = trimMS(__TEXTRAW);
@@ -632,15 +638,19 @@ function markAnchorNull(anchor, vid) {
     const __ANCHOR = anchor;
     const __VID = vid;
     const __BOLD = true;
-    const __COLOR = 'darkyellow';
+    const __COLOR = 'orange';
 
     return markAnchorEx(__ANCHOR, __BOLD, __COLOR, '(' + __VID + ')');
 }
 
-async function markAnchor(anchor) {
+function markAnchorMap(anchor) {
+    return markAnchor(anchor);  // Only one parameter, no index or arr!
+}
+
+async function markAnchor(anchor, href) {
     const __OPTSET = __MAIN.optSet;
     const __ANCHOR = anchor;
-    const __INFO = getYTinfo(__ANCHOR);
+    const __INFO = getYTinfo(__ANCHOR, href);
     let ret = __ANCHOR;
 
     if (__INFO) {
@@ -722,9 +732,11 @@ function markTitles(delay = 1000, repeat = 1500) {
 
     const __WORKER = function() {
         const __TITLELIST = getElements("A>SPAN, #video-title");  // __LOG[0](__TITLELIST);
+        //const __TITLE = getElement('[CLASS="style-scope ytd-watch-metadata"][FORCE-DEFAULT-STYLE=""]');  // __LOG[0](__TITLE);
+        //const __MARKED = (__TITLE ? markAnchor(__TITLE, window.location.href) : __TITLE);  // __LOG[0](__MARKED);
         const __TITLES = nodeList2Array(__TITLELIST);  // __LOG[0](__TITLES);
-        const __ANCHORS = __TITLES.map(findParentAnchor);  // __LOG[0](__ANCHORS);
-        const __RESULT = __ANCHORS.map(markAnchor);  // __LOG[0](__RESULT);
+        const __ANCHORS = __TITLES.map(findParentAnchorMap);  // __LOG[0](__ANCHORS);
+        const __RESULT = __ANCHORS.map(markAnchorMap);  // __LOG[0](__RESULT);
 
         setTimeout(__WORKER, __REPEAT);
     }
@@ -741,9 +753,6 @@ const procVideo = new PageManager("Video", null, () => {
 
         return {
                 'menuAnchor'  : getElement('DIV'),
-                'hideForm'    : {
-                                    'team'  : true
-                                },
                 'formWidth'   : 3,
                 'formBreak'   : 4
             };
@@ -760,9 +769,6 @@ const procSearch = new PageManager("Search", null, () => {
 
         return {
                 'menuAnchor'  : getElement('DIV'),
-                'hideForm'    : {
-                                    'team'  : true
-                                },
                 'formWidth'   : 3,
                 'formBreak'   : 4
             };
@@ -786,14 +792,8 @@ const procSearch = new PageManager("Search", null, () => {
 // 'formBreak': Elementnummer des ersten Zeilenumbruchs
 // return Gefuelltes Objekt mit den gesetzten Optionen
 async function prepareOptions(optSet, optParams) {
-    const __CLEANUP = !false;
+    const __CLEANUP = false;
     const __REFLAGS = 'i';
-
-    // Werte aus der HTML-Seite ermitteln...
-    //const __SAISON = 1;
-
-    // ... und abspeichern...
-    //optSet.setOpt('saison', __SAISON, false);
 
     // Optionen sind gerade geladen, starte Initialisierung der IDs ueber gespeicherte Optionswerte...
     await initIDs(optSet, __CLEANUP);
@@ -819,24 +819,22 @@ function setupManager(page) {
 
 // Konfiguration der Callback-Funktionen zum Hauptprogramm...
 const __MAINCONFIG = {
-                        setupManager    : setupManager,
-                        prepareOpt      : prepareOptions
+                        'setupManager'  : setupManager,
+                        'prepareOpt'    : prepareOptions
                     };
 
 // Selektor (Seite bzw. Parameter) fuer den richtigen PageManager...
 const __LEAFS = {
-                    'watch'        : 1, // Teamansicht Video
-                    'search'       : 2  // Teamansicht Search
-//                    , ''             : 0  // Teamansicht Video
+                    'watch'        : 1, // Ansicht Video
+                    'results'      : 2  // Ansicht Search
                 };
-const __ITEM = 's';
 
 // URL-Legende:
 // s=0: Video
 // s=1: Search
 const __MAIN = new Main(__OPTCONFIG, __MAINCONFIG, procVideo, procSearch);
 
-__MAIN.run(getPageIdFromURL, __LEAFS, __ITEM);
+__MAIN.run(getPageIdFromURL, __LEAFS);
 
 // ==================== Ende Hauptprogramm ====================
 
