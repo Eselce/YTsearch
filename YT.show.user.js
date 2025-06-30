@@ -160,10 +160,6 @@ function findParentTag(element, tagName = 'A') {
     return elem;
 }
 
-function findParentAnchorMap(element) {
-    return findParentAnchor(element);  // Only one parameter, no index or arr!
-}
-
 function findParentAnchor(element) {
     return findParentTag(element, 'A');
 }
@@ -218,6 +214,7 @@ function trimMS(s) {
     return __RET;
 }
 
+//const __FLAG_NEW = 'NEW';
 const __FLAG_N = 'N'
 
 async function findID(vid, raw = false) {
@@ -282,14 +279,14 @@ function matchSearch(title) {
     //return __TITLE.match(__SEARCHPATTERN);
 }
 
-function getYTinfo(anchor, href) {
+function getYTinfo(anchor) {
     if (! anchor) {
         return anchor;
     }
 
     const __ANCHOR = anchor;
     const __ANCHORDOWN = walkDownTags(__ANCHOR, "H3 SPAN");
-    const __HREF = (href || (__ANCHOR && __ANCHOR.href));
+    const __HREF = (__ANCHOR && __ANCHOR.href);
     const __VID = safeVID(__HREF);
     const __TEXTRAW = (__ANCHOR && __ANCHOR.textContent);
     const __TEXT = trimMS(__TEXTRAW);
@@ -381,14 +378,10 @@ function markAnchorNull(anchor, vid) {
     return markAnchorEx(__ANCHOR, __BOLD, __COLOR, '(' + __VID + ')');
 }
 
-function markAnchorMap(anchor) {
-    return markAnchor(anchor);  // Only one parameter, no index or arr!
-}
-
-async function markAnchor(anchor, href) {
+async function markAnchor(anchor) {
     const __OPTSET = __MAIN.optSet;
     const __ANCHOR = anchor;
-    const __INFO = getYTinfo(__ANCHOR, href);
+    const __INFO = getYTinfo(__ANCHOR);
     let ret = __ANCHOR;
 
     if (__INFO) {
@@ -445,11 +438,9 @@ function markTitles(delay = 1000, repeat = 1500) {
 
     const __WORKER = function() {
         const __TITLELIST = getElements("A>SPAN, #video-title");  // __LOG[0](__TITLELIST);
-        //const __TITLE = getElement('[CLASS="style-scope ytd-watch-metadata"][FORCE-DEFAULT-STYLE=""]');  // __LOG[0](__TITLE);
-        //const __MARKED = (__TITLE ? markAnchor(__TITLE, window.location.href) : __TITLE);  // __LOG[0](__MARKED);
         const __TITLES = nodeList2Array(__TITLELIST);  // __LOG[0](__TITLES);
-        const __ANCHORS = __TITLES.map(findParentAnchorMap);  // __LOG[0](__ANCHORS);
-        const __RESULT = __ANCHORS.map(markAnchorMap);  // __LOG[0](__RESULT);
+        const __ANCHORS = __TITLES.map(findParentAnchor);  // __LOG[0](__ANCHORS);
+        const __RESULT = __ANCHORS.map(markAnchor);  // __LOG[0](__RESULT);
 
         setTimeout(__WORKER, __REPEAT);
     }
@@ -528,22 +519,24 @@ function setupManager(page) {
 
 // Konfiguration der Callback-Funktionen zum Hauptprogramm...
 const __MAINCONFIG = {
-                        'setupManager'  : setupManager,
-                        'prepareOpt'    : prepareOptions
+                        setupManager    : setupManager,
+                        prepareOpt      : prepareOptions
                     };
 
 // Selektor (Seite bzw. Parameter) fuer den richtigen PageManager...
 const __LEAFS = {
                     'watch'        : 1, // Ansicht Video
-                    'results'      : 2  // Ansicht Search
+                    'search'       : 2  // Ansicht Search
+//                    , ''             : 0  // Ansicht Video
                 };
+const __ITEM = 's';
 
 // URL-Legende:
 // s=0: Video
 // s=1: Search
 const __MAIN = new Main(__OPTCONFIG, __MAINCONFIG, procVideo, procSearch);
 
-__MAIN.run(getPageIdFromURL, __LEAFS);
+__MAIN.run(getPageIdFromURL, __LEAFS, __ITEM);
 
 // ==================== Ende Hauptprogramm ====================
 
