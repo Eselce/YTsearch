@@ -220,7 +220,53 @@ function trimMS(s) {
     return __RET;
 }
 
+const __FLAG_NEW = 'NEW';
 const __FLAG_N = 'N'
+
+async function initIDs(optSet = __MAIN.optSet) {
+    __LOG[0]("initIDs()");
+
+    await checkStaticIDs();
+
+    __LOG[0]("initIDs():", "Data initialized!");
+
+    //logIDs();
+
+    return true;
+}
+
+async function checkStaticIDs() {
+    for (const vid of Object.keys(__REJECTVIDS)) {
+        const __VID = vid;
+        const __DBASEID = __LOVEBITESVIDS[__VID];
+        const __NEWID = __NEWVIDS[__VID];
+        const __INDBASE = ((typeof __DBASEID) !== "undefined");
+        const __INNEW = ((typeof __NEWID) !== "undefined");
+
+        //__LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_N);
+
+        if (__INDBASE) {
+            showAlert("Rejected VID in data base!", __VID);
+        }
+        if (__INNEW) {
+            showAlert("Rejected VID in static list!", __VID);
+        }
+    }
+
+    for (const vid of Object.keys(__NEWVIDS)) {
+        const __VID = vid;
+        const __DBASEID = __LOVEBITESVIDS[__VID];
+        const __INDBASE = ((typeof __DBASEID) !== "undefined");
+
+        //__LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_NEW);
+
+        if (__INDBASE) {  // can't have it also in (static) __NEWVIDS without a comment!
+            //__LOG[4]("Static VID " + __VID + " is already in the data base!");
+        }
+    }
+
+    return true;
+}
 
 async function findID(vid, raw = false) {
     const __VID = vid;
@@ -511,6 +557,9 @@ const procSearch = new PageManager("Search", null, () => {
 // return Gefuelltes Objekt mit den gesetzten Optionen
 async function prepareOptions(optSet, optParams) {
     const __REFLAGS = 'i';
+
+    // Optionen sind gerade geladen, starte Initialisierung der IDs ueber gespeicherte Optionswerte...
+    await initIDs(optSet);
 
     // Optionen sind gerade geladen, starte Initialisierung der Suchmuster ueber gespeicherte Optionswerte...
     await initSearch(optSet, __REFLAGS);

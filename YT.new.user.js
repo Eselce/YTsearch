@@ -326,6 +326,8 @@ async function initIDs(optSet = __MAIN.optSet, cleanUp = false) {
     const __CLEANUP = cleanUp;
     const __STOREDVIDS = await __OPTSET.getOptValue('Links');
 
+    await checkStaticIDs();
+
     for (const [key, value] of Object.entries(__STOREDVIDS)) {
         await checkAddID(key, value, __CLEANUP);
     }
@@ -346,6 +348,39 @@ async function initIDs(optSet = __MAIN.optSet, cleanUp = false) {
     return true;
 }
 
+async function checkStaticIDs() {
+    for (const vid of Object.keys(__REJECTVIDS)) {
+        const __VID = vid;
+        const __DBASEID = __LOVEBITESVIDS[__VID];
+        const __NEWID = __NEWVIDS[__VID];
+        const __INDBASE = ((typeof __DBASEID) !== "undefined");
+        const __INNEW = ((typeof __NEWID) !== "undefined");
+
+        __LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_N);
+
+        if (__INDBASE) {
+            showAlert("Rejected VID in data base!", __VID);
+        }
+        if (__INNEW) {
+            showAlert("Rejected VID in static list!", __VID);
+        }
+    }
+
+    for (const vid of Object.keys(__NEWVIDS)) {
+        const __VID = vid;
+        const __DBASEID = __LOVEBITESVIDS[__VID];
+        const __INDBASE = ((typeof __DBASEID) !== "undefined");
+
+        __LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_NEW);
+
+        if (__INDBASE) {  // can't have it also in (static) __NEWVIDS without a comment!
+           __LOG[4]("Static VID " + __VID + " is already in the data base!");
+        }
+    }
+
+    return true;
+}
+
 async function checkAddID(vid, url, cleanUp = false, check = true, add = true) {
     const __VID = vid;
     const __URL = (url || __FLAG_N);
@@ -358,15 +393,16 @@ async function checkAddID(vid, url, cleanUp = false, check = true, add = true) {
     const __NEWID = __NEWVIDS[__VID];
     const __CLEANURL = cleanURL(__URL);
     const __SETURL = ((__CLEANUP && __CLEANURL) ? __CLEANURL : __URL);
-    const __REJECTED = (__SETURL === __FLAG_N);
     const __INDBASE = ((typeof __DBASEID) !== "undefined");
     const __INREJECT = ((typeof __REJECTID) !== "undefined");
     const __INNEW = ((typeof __NEWID) !== "undefined");
+    const __TRYREJECT = (__SETURL === __FLAG_N);
+    const __REJECTED = (__INREJECT || __TRYREJECT);
 
-    __LOG[1]("initIDs()", __VID, '=', __SETURL);
+    __LOG[1]("checkAddID()", __VID, '=', __SETURL);
 
     if (__CHECK) {
-        if (__INREJECT || __REJECTED) {  // can't have it in any of the other lists!
+        if (__TRYREJECT) {
             if (__INDBASE) {
                 showAlert("Data base VID " + __VID + " cannot be rejected!", __SETURL);
             }
@@ -374,16 +410,12 @@ async function checkAddID(vid, url, cleanUp = false, check = true, add = true) {
                 showAlert("Static VID " + __VID + " cannot be rejected!", __SETURL);
             }
         }
-        if (__INDBASE) {  // can't have it also in (static) __NEWVIDS without a comment!
-            if (__INNEW) {
-                __LOG[3]("Static VID is already in the data base!");
-            }
-        }
+
         if (__INDBASE) {
             __LOG[2]("Dropping VID already in data base...");
             return false;
         } else if (__INREJECT) {
-            if (__RAW || ! __REJECTED) {  // __RAW: always fail, else check if rejected ID!
+            if (__RAW || ! __TRYREJECT) {  // __RAW: always fail, else check if rejected ID!
                 showAlert("Rejected VID " + __VID + " cannot be set!", __SETURL);
             } else {
                 __LOG[2]("Dropping already rejected VID...");
