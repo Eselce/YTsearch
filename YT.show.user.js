@@ -226,7 +226,7 @@ const __FLAG_N = 'N'
 async function initIDs(optSet = __MAIN.optSet) {
     __LOG[0]("initIDs()");
 
-    await checkStaticIDs();
+    const __IMPORT = await checkStaticIDs();
 
     __LOG[0]("initIDs():", "Data initialized!");
 
@@ -236,6 +236,8 @@ async function initIDs(optSet = __MAIN.optSet) {
 }
 
 async function checkStaticIDs() {
+    const __IMPORT = { };
+
     for (const vid of Object.keys(__REJECTVIDS)) {
         const __VID = vid;
         const __DBASEID = __LOVEBITESVIDS[__VID];
@@ -262,10 +264,12 @@ async function checkStaticIDs() {
 
         if (__INDBASE) {  // can't have it also in (static) __NEWVIDS without a comment!
             //__LOG[4]("Static VID " + __VID + " is already in the data base!");
+        } else {  // Candidate for import...
+            __IMPORT[__VID] = __VID;
         }
     }
 
-    return true;
+    return __IMPORT;
 }
 
 async function findID(vid, raw = false) {

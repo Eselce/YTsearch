@@ -315,6 +315,7 @@ function trimMS(s) {
 }
 
 const __DYNVIDS = { };
+const __NEWVIDS2IMPORT = { };
 
 const __FLAG_NEW = 'NEW';
 const __FLAG_N = 'N'
@@ -325,11 +326,19 @@ async function initIDs(optSet = __MAIN.optSet, cleanUp = false) {
     const __OPTSET = optSet;
     const __CLEANUP = cleanUp;
     const __STOREDVIDS = await __OPTSET.getOptValue('Links');
+    const __IMPORT = await checkStaticIDs();
 
-    await checkStaticIDs();
+    // Only, if initIDs() can be called twice!
+    //clearObj(__DYNVIDS);
+    //clearObj(__NEWVIDS2IMPORT);
+
+    Object.assign(__NEWVIDS2IMPORT, __IMPORT);
 
     for (const [key, value] of Object.entries(__STOREDVIDS)) {
         await checkAddID(key, value, __CLEANUP);
+
+        // Ignore static entry, there's a new kid in town!
+        //delete __NEWVIDS2IMPORT[key];
     }
 
     __LOG[0]("initIDs():", "Data initialized!", __DYNVIDS);
@@ -349,6 +358,8 @@ async function initIDs(optSet = __MAIN.optSet, cleanUp = false) {
 }
 
 async function checkStaticIDs() {
+    const __IMPORT = { };
+
     for (const vid of Object.keys(__REJECTVIDS)) {
         const __VID = vid;
         const __DBASEID = __LOVEBITESVIDS[__VID];
@@ -375,10 +386,12 @@ async function checkStaticIDs() {
 
         if (__INDBASE) {  // can't have it also in (static) __NEWVIDS without a comment!
            __LOG[4]("Static VID " + __VID + " is already in the data base!");
+        } else {  // Candidate for import...
+            __IMPORT[__VID] = __VID;
         }
     }
 
-    return true;
+    return __IMPORT;
 }
 
 async function checkAddID(vid, url, cleanUp = false, check = true, add = true) {
@@ -573,6 +586,8 @@ function logIDs() {
     __LOG[2](showIDs(__REJECTED, __SHOWKEYS, __NOINDEX, __OBJFORMAT));
     __LOG[2](showIDs(__ACCEPTED, __NOKEYS, __NOINDEX, __OBJFORMAT, __FLAG_NEW));
     __LOG[2](showIDs(__ACCEPTED, __NOKEYS, __NOINDEX));
+
+    __LOG[2](showListValues(__NEWVIDS2IMPORT, __NOKEYS, __NOINDEX));
 }
 
 function askNewLink(vid, href, text, channelAdd) {
