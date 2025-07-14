@@ -41,7 +41,7 @@ const __OPTCONFIG = {
                    'Type'      : __OPTTYPES.SD,
                    'Hidden'    : false,
                    'Serial'    : true,
-                   'Permanent' : !true,
+                   'Permanent' : false,
                    'Default'   : [ "LOVE.?BITES?",
                                   "Miyako",
                                   "Fami[^l]",
@@ -385,7 +385,7 @@ async function checkStaticIDs() {
         __LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_NEW);
 
         if (__INDBASE) {  // can't have it also in (static) __NEWVIDS without a comment!
-           __LOG[4]("Static VID " + __VID + " is already in the data base!");
+            __LOG[4]("Static VID " + __VID + " is already in the data base!");
         } else {  // Candidate for import...
             __IMPORT[__VID] = __VID;
         }
@@ -677,7 +677,7 @@ function getYTinfo(anchor, href) {
 
     if ((! __VID) || (__ANCHOR.YTlogged != __VID)) {
         if (__VID) {
-            __LOG[1](__INFO);
+            __LOG[2](__INFO);
         }
 
         __ANCHOR.YTlogged = __VID;
@@ -755,9 +755,7 @@ async function markAnchor(anchor, href) {
     let ret = __ANCHOR;
 
     if (__INFO) {
-        const __HREF = __INFO.href;
         const __VID = __INFO.vid;
-        const __TEXTRAW = __INFO.textRaw;
         const __TEXT = __INFO.text;
         const __CHANNEL = __INFO.channel;
         const __CHANNELADD = (__CHANNEL ? " / '" + __CHANNEL + "'" : "");
@@ -784,11 +782,11 @@ async function markAnchor(anchor, href) {
             const __REJECTED = (__ID === __FLAG_N);
 
             if (__ID && ! __REJECTED) {
-                __LOG[0]("Found", __VID, __ID);
+                __LOG[2]("Found", __VID, __ID);
             } else if (__REJECTED) {
-                __LOG[0]("Rejected", __VID);
+                __LOG[2]("Rejected", __VID);
             } else {
-                __LOG[0]("Checked", __VID);
+                __LOG[2]("Checked", __VID);
             }
 
             __ANCHOR.YTnewMark = __VID;
@@ -797,6 +795,7 @@ async function markAnchor(anchor, href) {
                 ret = markAnchorOK(__ANCHOR, __VID, __ID);
             } else {
                 if (matchSearch(__TEXT)) {
+                    const __HREF = __INFO.href;
                     const __ASKNEW = await __OPTSET.getOptValue('askNew', false);
                     let addNew = false;
 

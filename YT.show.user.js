@@ -24,7 +24,7 @@
 
 // ==================== Konfigurations-Abschnitt fuer Optionen ====================
 
-const __LOGLEVEL = 4;
+const __LOGLEVEL = 1;
 
 // Moegliche Optionen (hier die Standardwerte editieren oder ueber das Benutzermenu setzen):
 const __OPTCONFIG = {
@@ -223,7 +223,7 @@ function trimMS(s) {
 const __FLAG_NEW = 'NEW';
 const __FLAG_N = 'N'
 
-async function initIDs(optSet = __MAIN.optSet) {
+async function initIDs(optSet = __MAIN.optSet, cleanUp = false) {
     __LOG[0]("initIDs()");
 
     const __IMPORT = await checkStaticIDs();
@@ -245,7 +245,7 @@ async function checkStaticIDs() {
         const __INDBASE = ((typeof __DBASEID) !== "undefined");
         const __INNEW = ((typeof __NEWID) !== "undefined");
 
-        //__LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_N);
+        __LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_N);
 
         if (__INDBASE) {
             showAlert("Rejected VID in data base!", __VID);
@@ -260,10 +260,10 @@ async function checkStaticIDs() {
         const __DBASEID = __LOVEBITESVIDS[__VID];
         const __INDBASE = ((typeof __DBASEID) !== "undefined");
 
-        //__LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_NEW);
+        __LOG[2]("checkStaticIDs()", __VID, '=', __FLAG_NEW);
 
         if (__INDBASE) {  // can't have it also in (static) __NEWVIDS without a comment!
-            //__LOG[4]("Static VID " + __VID + " is already in the data base!");
+            __LOG[4]("Static VID " + __VID + " is already in the data base!");
         } else {  // Candidate for import...
             __IMPORT[__VID] = __VID;
         }
@@ -369,7 +369,7 @@ function getYTinfo(anchor, href) {
 
     if ((! __VID) || (__ANCHOR.YTlogged != __VID)) {
         if (__VID) {
-            //__LOG[1](__INFO);
+            __LOG[2](__INFO);
         }
 
         __ANCHOR.YTlogged = __VID;
@@ -447,9 +447,7 @@ async function markAnchor(anchor, href) {
     let ret = __ANCHOR;
 
     if (__INFO) {
-        //const __HREF = __INFO.href;
         const __VID = __INFO.vid;
-        //const __TEXTRAW = __INFO.textRaw;
         const __TEXT = __INFO.text;
         const __CHANNEL = __INFO.channel;
         const __CHANNELADD = (__CHANNEL ? " / '" + __CHANNEL + "'" : "");
@@ -470,11 +468,11 @@ async function markAnchor(anchor, href) {
             const __REJECTED = (__ID === __FLAG_N);
 
             if (__ID && ! __REJECTED) {
-                //__LOG[0]("Found", __VID, __ID);
+                __LOG[2]("Found", __VID, __ID);
             } else if (__REJECTED) {
-                //__LOG[0]("Rejected", __VID);
+                __LOG[2]("Rejected", __VID);
             } else {
-                //__LOG[0]("Checked", __VID);
+                __LOG[2]("Checked", __VID);
             }
 
             __ANCHOR.YTnewMark = __VID;
@@ -560,10 +558,11 @@ const procSearch = new PageManager("Search", null, () => {
 // 'formBreak': Elementnummer des ersten Zeilenumbruchs
 // return Gefuelltes Objekt mit den gesetzten Optionen
 async function prepareOptions(optSet, optParams) {
+    const __CLEANUP = false;
     const __REFLAGS = 'i';
 
     // Optionen sind gerade geladen, starte Initialisierung der IDs ueber gespeicherte Optionswerte...
-    await initIDs(optSet);
+    await initIDs(optSet, __CLEANUP);
 
     // Optionen sind gerade geladen, starte Initialisierung der Suchmuster ueber gespeicherte Optionswerte...
     await initSearch(optSet, __REFLAGS);
