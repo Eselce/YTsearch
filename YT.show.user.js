@@ -110,6 +110,13 @@ const __OPTCONFIG = {
 
 // ==================== Ende Konfigurations-Abschnitt fuer Optionen ====================
 
+// ==================== Spezialisierter Abschnitt fuer Optionen ====================
+
+// Logging initialisieren mit Loglevel (siehe ganz oben im Konfigurationsabschnitt)...
+__LOG.init(window, __LOGLEVEL);
+
+// ==================== Ende Abschnitt fuer Optionen ====================
+
 const __VPREFIX = '';
 
 function safeID(url, dflt = null, patterns = null, prefix = __VPREFIX) {  // strips ID to pure ID according to the patterns...
