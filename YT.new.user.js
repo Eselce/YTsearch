@@ -419,7 +419,7 @@ async function checkAddID(vid, url, cleanUp = false, check = true, add = true) {
     const __TRYREJECT = (__SETURL === __FLAG_N);
     const __REJECTED = (__INREJECT || __TRYREJECT);
 
-    __LOG[1]("checkAddID()", __VID, '=', __SETURL);
+    __LOG[2]("checkAddID()", __VID, '=', __SETURL);
 
     if (__CHECK) {
         if (__TRYREJECT) {
@@ -432,17 +432,17 @@ async function checkAddID(vid, url, cleanUp = false, check = true, add = true) {
         }
 
         if (__INDBASE) {
-            __LOG[2]("Dropping VID already in data base...");
+            __LOG[1]("Dropping VID already in data base...");
             return false;
         } else if (__INREJECT) {
             if (__RAW || ! __TRYREJECT) {  // __RAW: always fail, else check if rejected ID!
                 showAlert("Rejected VID " + __VID + " cannot be set!", __SETURL);
             } else {
-                __LOG[2]("Dropping already rejected VID...");
+                __LOG[1]("Dropping already rejected VID...");
             }
             return false;
         } else if (__INNEW) {
-            __LOG[2]("Dropping already static VID...");
+            __LOG[1]("Dropping already static VID...");
             return false;
         }
     }
