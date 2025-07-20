@@ -1,0 +1,27 @@
+o Module @name
+o @description
+o (2x) @grant getValue, setValue, deleteValue, registerMenuCommand
+o searchRE.Permanent = !true/false
+o askNew, alertInconsistency, Links, newLinks missing
+o storage.Default = __OPTMEM.inaktiv
+o oldStorage.Default = 'inaktiv'
+* - sleep() -> liball
+* - clearObj(), clearedObj() -> liball
+* - cleanURL() - URL stripped after VID -> YTutil
+* - const __DYNVIDS, __NEWVIDS2IMPORT -> IDext
+<> initIDs (parameter cleanUp, etc.) - everything but checkStaticIDs() missing
+-> custumized call postInit()
+* <> checkStaticIDs() - 3x __LOG off
+* -> __LOGLEVEL ? Yes! = 1
+* - checkAddId() - test dynamic IDs (plausi & vs. static IDs) -> IDext?
+<> findID() - dynamic search
+-> external call
+* - setID(), acceptURL(), rejectURL(), deleteURL() -> IDext
+* - showListValues(), showIDs(), logIDs() -> IDext
+* <> getYTinfo() - __LOG[1] fast egal (2)
+<> markAnchor() - __HREF, __TEXTRAW, __SHOWALERT,
+*   3x __LOG[0] (Found, Rejected, Checked) egal (2),
+   else: dynamic set, __ASKNEW, etc.
+-> external call
+* <> prepareOptions - __CLEANUP
+* -> egalize it

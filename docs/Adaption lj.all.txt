@@ -1,0 +1,32 @@
+OS2.page.js, OS2.page.team.js, OS2.team.js, OS2.zat.js:
+- Diverse TYPOs in Kommentaren
+
+util.log.js: __LOG-Objekt: #152
+- Kommentare
+- __BINDTO für später speichern (in this)
+- init(): 2x Bugfix __LOG[2] nicht sichtbar für Loglevel 1
+- createFun(): Implizite Verwendung von __BINDTO und Loglevel
+- raw() - Zugriff auf log-Kanäle ohne ein createFun()
+- _() - Ausgabe mindestens mit niedrigstem Loglevel
+- hasLevel() - Überprüfung, ob derzeit dieser Kanal verfügbar ist
+
+promise.js:
+- sleep() - Sehr einfache Wartefunktion (ohne Fehlerhandling)
+- newPromise(), getTimedPromiseSLC(), getTimedPromiseRombau():
+    Konstanten-Konvention; Bugfix: Auch bei reject() Timer stoppen! #153
+
+util.debug.js:
+- askUser() - Abfragefunktion zu showAlert() verschoben, sehr nützlich #154
+
+util.value.js:
+- clearObj() - Alle Elemente entfernen (außer bestimmte) #155
+- clearObjFast() - Alle Elemente entfernen (radikaler/schneller, neues Objekt) #155
+- allItems() - Filterfunktion für alle (nichttrivialen) Einträge #156
+- noItems() - Filterfunktion für keine Einträge (auch nicht null oder undefined) #156
+- trimMS() - Trimfunktion für mehrzeilige Strings (Whitespaces, Leerzeichen) #157
+
+util.debug.test.js:
+- Kommentar: askUser() #154
+
+util.value.test.js:
+- Kommentar: clearObj(), clearObjFast(), allItems(), noItems(), trimMS() #155 #156 #157
