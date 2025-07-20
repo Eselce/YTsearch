@@ -12,6 +12,7 @@
 // @grant        GM_info
 // @run-at       document-idle
 // @require      https://eselce.github.io/GitTest/misc/OS2/lib/lib.all.js
+// @require      https://eselce.github.io/YTsearch/lib/lib.YT.js
 // @require      https://eselce.github.io/YTsearch/lib/LOVEBITES.db.js
 // @require      https://eselce.github.io/YTsearch/lib/REJECT.db.js
 // @require      https://eselce.github.io/YTsearch/lib/NEW.db.js

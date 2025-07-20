@@ -4,7 +4,7 @@
 // @version      0.10+lib
 // @copyright    2025+
 // @author       Sven Loges (SLC)
-// @description  YouTube-Info-Script for Greasemonkey 4.0
+// @description  YouTube-Info-Script for Greasemonkey 4.0 (pretty much useless!)
 // @include      /^https?://www\.youtube\.com/watch\?v=(\S+)(&\w+=?[+\w]+)*(#\w+)?$/
 // @include      /^https?://youtu\.be/(\S+)\?v=(\S+)(\?\w+=?[+\w]+)*(#\w+)?(&\w+=?[+\w]+)*(#\w+)?$/
 // @grant        GM.getValue
