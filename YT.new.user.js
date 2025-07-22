@@ -174,26 +174,6 @@ __LOG.init(window, __LOGLEVEL);
 
 // ==================== Ende Abschnitt fuer Optionen ====================
 
-function markTitles(delay = 1000, repeat = 1500) {
-    const __DELAY = delay;
-    const __REPEAT = repeat;
-
-    const __WORKER = function() {
-        const __TITLELIST = getElements("A>SPAN, #video-title");  // __LOG[0](__TITLELIST);
-        //const __TITLE = getElement('[CLASS="style-scope ytd-watch-metadata"][FORCE-DEFAULT-STYLE=""]');  // __LOG[0](__TITLE);
-        //const __MARKED = (__TITLE ? markAnchor(__TITLE, window.location.href) : __TITLE);  // __LOG[0](__MARKED);
-        const __TITLES = nodeList2Array(__TITLELIST);  // __LOG[0](__TITLES);
-        const __ANCHORS = __TITLES.map(findParentAnchorMap);  // __LOG[0](__ANCHORS);
-        const __RESULT = __ANCHORS.map(markAnchorMap);  // __LOG[0](__RESULT);
-
-        setTimeout(__WORKER, __REPEAT);
-    }
-
-    setTimeout(__WORKER, __DELAY);
-
-    return true;
-}
-
 // ==================== Page-Manager fuer Infos zum Video ====================
 
 // Verarbeitet Ansicht "Video abspielen"
@@ -246,6 +226,10 @@ async function prepareOptions(optSet, optParams) {
     const __CLEANUP = false;
     const __PATTERNS = await __OPTSET.getOptValue('searchRE', []);
     const __REFLAGS = 'i';
+
+    // Registriere Servicefunktionen...
+    setRegFun('getID', getID);
+    setRegFun('handleNewMatch', handleNewMatchDyn);
 
     // Starte Initialisierung der statischen VIDs (check)...
     const __IMPORT = await initStaticIDs();
