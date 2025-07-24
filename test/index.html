@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<HTML>
+    <HEAD>
+        <META charset="utf-8">
+        <TITLE>YTsearch - Unit-Tests der Greasemonkey Benutzerscript-Bibliothek</TITLE>
+        <LINK rel="stylesheet" type="text/css" href="../css/os_styles.css" />
+        <LINK rel="stylesheet" type="text/css" href="../css/print.css" media="print" />
+        <LINK rel="shortcut icon" type="image/ico" href="../img/favicon.ico" />
+        <STYLE>
+            .script {
+                border:2px solid grey;
+                border-collapse:collapse;
+            }
+            .script TD {
+                border:2px solid grey;
+                border-collapse:collapse;
+            }
+        </STYLE>
+        <SCRIPT type="text/javascript">
+//<![CDATA[
+
+const GM_info = {  // Mock GM_info data
+        'script' : {
+                'name'        : "test/index.html",
+                'version'     : "0.10",
+                'namespace'   : "https://www.youtube.com/",
+                'description' : "YTsearch - Unit-Tests der Greasemonkey Benutzerscript-Bibliothek"
+            }
+    };
+
+//]]>
+        </SCRIPT>
+
+        <!-- ====================== Script-Includes: GM4-Polyfill, lib.all, Module und Unit-Tests ====================== -->
+
+        <SCRIPT type="text/javascript" defer src="https://greasemonkey.github.io/gm4-polyfill/gm4-polyfill.js"></SCRIPT>
+
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/lib/lib.all.js"></SCRIPT>
+
+<!--
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/LOVEBITES.db.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/NEW.db.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/REJECT.db.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.util.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.util.video.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.named.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.search.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.vid.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.vid.dyn.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.vid.dyn.mod.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.vid.log.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.dom.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.dom.mark.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/lib/YT.dom.mark.mod.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/LOVEBITES.db.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/NEW.db.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/REJECT.db.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.util.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.util.test.video.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.named.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.search.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.vid.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.vid.dyn.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.vid.dyn.test.mod.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.vid.log.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.dom.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.dom.mark.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/YTsearch/test/YT.dom.mark.mod.test.js"></SCRIPT>
+-->
+        <SCRIPT type="text/javascript" defer src="../lib/LOVEBITES.db.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/NEW.db.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/REJECT.db.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.util.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.util.video.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.named.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.search.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.vid.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.vid.dyn.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.vid.dyn.mod.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.vid.log.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.dom.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.dom.mark.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="../lib/YT.dom.mark.mod.js"></SCRIPT>
+
+<!--        <SCRIPT type="text/javascript" defer src="../lib/lib.YT.all.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="../lib/lib.YT.base.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="../lib/lib.YT.data.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="../lib/lib.YT.ext.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="../lib/lib.YT.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="../lib/lib.YT.test.js"></SCRIPT> -->
+
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/lib/test.mock.gm.js"></SCRIPT>
+
+<!--        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/lib/test.assert.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/lib/test.class.unittest.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/lib/test.lib.option.js"></SCRIPT> -->
+
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/lib/lib.test.base.js"></script>
+
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/test/test.assert.test.js"></SCRIPT>
+<!--        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/test/test.bsp.test.js"></SCRIPT> -->
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/test/test.class.unittest.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/test/test.lib.option.test.js"></SCRIPT>
+        <SCRIPT type="text/javascript" defer src="https://eselce.github.io/GitTest/misc/OS2/test/test.mock.gm.test.js"></SCRIPT>
+<!--        <SCRIPT type="text/javascript" defer src="LOVEBITES.db.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="NEW.db.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="REJECT.db.test.js"></SCRIPT> -->
+        <SCRIPT type="text/javascript" defer src="YT.util.test.js"></SCRIPT>
+<!--        <SCRIPT type="text/javascript" defer src="YT.util.test.video.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.named.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.search.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.vid.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.vid.dyn.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.vid.dyn.test.mod.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.vid.log.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.dom.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.dom.mark.test.js"></SCRIPT> -->
+<!--        <SCRIPT type="text/javascript" defer src="YT.dom.mark.mod.test.js"></SCRIPT> -->
+    </HEAD>
+    <BODY>
+        <DIV id="run-unittests">
+            <H3>Unit-Tests zur Benutzerscript-Bibliothek f&uuml;r YTsearch unter dem Greasemonkey AddOn</H3>
+
+            || <A onClick="startMain(); return false;">Init</A>
+            || <A onClick="UnitTest.runAll(1); return false;">Unit-Tests starten</A>
+            || <A onClick="UnitTest.runAll(4); return false;">Nur Zusammenfassungen</A>
+            || <A onClick="UnitTest.runAll(0); return false;">Alle Unit-Tests (auch OK) ausgeben</A>
+            || <A onClick="(getElementById('UnitTest') || { }).innerHTML=''; return false;">Tabelle leeren</A>
+            ||
+        </DIV>
+        <BR />
+
+        <SCRIPT type="text/javascript">
+//<![CDATA[
+
+//==================== Hauptprogramm ====================
+
+(() => {
+    // Unit-Test-Ausfuehrung nur nach Klick!
+    const __RET = true;
+
+    addEventListener("DOMContentLoaded", function() {
+            if (typeof (GM || { }).log === 'undefined') {  // Fehler beim Laden von 'gm4-polyfill.js'...
+                const __ANCHOR = document.querySelector("#run-unittests");
+
+                __ANCHOR.textContent = "Error loading 'gm4-polyfill.js'...";
+            }
+        });
+
+    return __RET;
+})();
+
+//]]>
+        </SCRIPT>
+        <NOSCRIPT>Your browser does not support JavaScript!</NOSCRIPT>
+    </BODY>
+</HTML>
