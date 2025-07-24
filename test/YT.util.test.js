@@ -35,7 +35,7 @@
 
                                         return ASSERT_TYPEOF(__RET, __TYPE, "__YOUTUBEHOME muss String zur\u00FCckgeben");
                                     },
-            '__NOPREFIX'       : function() {
+            '__NOPREFIX'          : function() {
                                         const [ __EXP, __TYPE ] = __TESTDATA['__NOPREFIX'];
                                         const __RET = __NOPREFIX;
 
@@ -50,7 +50,7 @@
                                         ASSERT_EQUAL(__RET, __EXP, "safeID() muss String zur\u00FCckgeben");
 
                                         return ASSERT_TYPEOF(__RET, __TYPE, "safeID() muss String zur\u00FCckgeben");
-                                    }                                    }
+                                    }
         });
 
 // ==================== Ende Abschnitt fuer diverse Utilities fuer YouTube ====================
