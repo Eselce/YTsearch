@@ -45,7 +45,7 @@
                                     },
             'safeID'              : function() {
                                         const [ __URL, __DEF, __PAT, __PRE, __EXP, __TYPE ] = __TESTDATA['safeID'];
-                                        const __RET = saveID(__URL, __DEF, __PAT, __PRE);
+                                        const __RET = safeID(__URL, __DEF, __PAT, __PRE);
 
                                         ASSERT_EQUAL(__RET, __EXP, "safeID() muss String zur\u00FCckgeben");
 
