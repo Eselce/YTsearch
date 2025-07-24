@@ -4,7 +4,7 @@
 // @version      0.20+lib
 // @copyright    2025+
 // @author       Sven Loges (SLC)
-// @description  YouTube-Markierungs-Script for Greasemonkey 4.0
+// @description  YouTube Video Marking - Script for Greasemonkey 4.0
 // @include      /^https?://www\.youtube\.com/.*$/
 // @include      /^https?://youtu\.be/.*$/
 // @grant        GM.getValue
