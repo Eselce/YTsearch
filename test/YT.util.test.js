@@ -21,9 +21,9 @@
 // ==================== Abschnitt fuer diverse Utilities fuer YouTube ====================
 
     const __TESTDATA = {
-            '__YOUTUBEHOME'         : [ 'https://www.youtube.com',                          'string'    ],
-            '__NOPREFIX'            : [ "",                                                 'string'    ],
-            'safeID'                : [ "https://www.youtube.com/watch?v=hBEU15T6q5g", undefined, undefined, __NOPREFIX, 'hBEU15T6q5g', 'string' ]
+            '__YOUTUBEHOME'         : [ 'https://www.youtube.com',                                      'string'    ],
+            '__NOPREFIX'            : [ "",                                                             'string'    ],
+            'safeID'                : [ "hBEU15T6q5g", undefined, undefined, __NOPREFIX, 'hBEU15T6q5g', 'string'    ]
         };
 
     new UnitTest('YT.util.js', "Utilities zur Behandlung von YouTube-IDs", {
