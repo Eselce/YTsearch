@@ -79,6 +79,17 @@ const __OPTCONFIG = {
                    'AltHotkey' : 'A',
                    'FormLabel' : "Abfrage"
                },
+    'askRef' : {   // Angabe, ob neue Referenzen bestaetigt werden sollen (true = anzeigen, false = nicht anzeigen)
+                   'Name'      : "askRef",
+                   'Type'      : __OPTTYPES.SW,
+                   'Default'   : false,
+                   'Action'    : __OPTACTION.NXT,
+                   'Label'     : "Ref.-Abfrage ein",
+                   'Hotkey'    : 'R',
+                   'AltLabel'  : "Ref.-Abfrage aus",
+                   'AltHotkey' : 'R',
+                   'FormLabel' : "Referenz-Abfrage"
+               },
     'alertInconsistency' : {  // Angabe, eine Meldung kommen soll, wenn VID und ANCHOR nicht zusammenpassen (true = anzeigen, false = nicht anzeigen)
                    'Name'      : "alertInconsistency",
                    'Type'      : __OPTTYPES.SW,
@@ -117,6 +128,20 @@ const __OPTCONFIG = {
                    'Replace'   : null,
                    'Space'     : 0,
                    'Label'     : "New URLs:"
+               },
+    'RefIDs' : {  // Datenspeicher fuer Referenz-Liste zu den VIDs
+                   'Name'      : "RefIDs",
+                   'Type'      : __OPTTYPES.SD,
+                   'Hidden'    : false,
+                   'Serial'    : true,
+                   'Permanent' : true,
+                   'Default'   : { },
+                   'Submit'    : undefined,
+                   'Cols'      : 36,
+                   'Rows'      : 100,
+                   'Replace'   : null,
+                   'Space'     : 0,
+                   'Label'     : "VID-Refs:"
                },
     'reset' : {           // Optionen auf die "Werkseinstellungen" zuruecksetzen
                    'FormPrio'  : undefined,
@@ -222,7 +247,8 @@ const procSearch = new PageManager("Search", null, () => {
 async function prepareOptions(optSet, optParams) {
     // Optionen sind gerade geladen...
     const __OPTSET = optSet;
-    const __STOREDVIDS = await __OPTSET.getOptValue('Links');
+    const __STOREDVIDS = await __OPTSET.getOptValue('Links', { });
+    const __STOREDREFS = await __OPTSET.getOptValue('RefIDs', { });
     const __CLEANUP = false;
     const __PATTERNS = await __OPTSET.getOptValue('searchRE', []);
     const __REFLAGS = 'i';
@@ -230,12 +256,16 @@ async function prepareOptions(optSet, optParams) {
     // Registriere Servicefunktionen...
     setRegFun('getID', getID);
     setRegFun('handleNewMatch', handleNewMatchDyn);
+    setRegFun('checkRef', checkRef);
 
     // Starte Initialisierung der statischen VIDs (check)...
     const __IMPORT = await initStaticIDs();
 
     // Starte Initialisierung der dynamischen VIDs ueber gespeicherte Optionswerte...
     await initDynIDs(__STOREDVIDS, __IMPORT, __CLEANUP);
+
+    // Starte Initialisierung der dynamischen RefIDs ueber gespeicherte Optionswerte...
+    await initRefIDs(__STOREDREFS);
 
     // Starte Initialisierung der Suchmuster ueber gespeicherte Optionswerte...
     await initSearch(__PATTERNS, __REFLAGS);
@@ -248,7 +278,9 @@ async function prepareOptions(optSet, optParams) {
     //await rejectURL("https://www.youtube.com/shorts/13FG40ISI9s");
     //await rejectURL("https://www.youtube.com/shorts/OJ-R6_pDGaY");
     //await deleteURL("https://www.youtube.com/watch?v=c9ZqoqCPyd0&list=PLghYzmkF89GlIUtG0vYqyludt0ZQYUTxj&index=1&pp=iAQB8AUB");
+    //await setRefID("https://www.youtube.com/watch?v=H7eZBufRr9E", null);
 
+    logRefIDs();
     logIDs();
 
     return optSet;
